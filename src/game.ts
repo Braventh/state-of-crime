@@ -82,14 +82,18 @@ export class Game {
   get current() { return JOBS[this.index]; }
   get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
 
-  goal() {
+  goal(): { x: number; name: string; text: string; hint?: string } {
     if (!this.current) return { ...POINTS.garage, text: 'All five jobs cleared. The coast is yours.' };
+    if (this.index === 0) {
+      if (!this.job) return { ...POINTS.contact, text: 'Meet Mara to start First Light',
+        hint: 'A / D to move. Follow the gold marker and press E when prompted.' };
+      if (this.car !== this.starterKite && !this.job.drove) return { x: this.starterKite.x, name: 'Orange Kite', text: 'Borrow the orange Kite',
+        hint: this.car ? 'Press E to exit, then walk to the marked car.' : 'Walk to the marked car and press E when prompted.' };
+      return { ...POINTS.delivery, text: this.job.drove ? 'Deliver the canister to Tidelane' : 'Drive the orange Kite to Tidelane',
+        hint: this.car ? 'A / D to drive, W / S to change lanes, Space to brake.' : 'Follow the gold marker to Tidelane.' };
+    }
     if (!this.job) return { ...this.current.location, text: 'Meet ' + this.current.contact + ' · ' + this.current.location.name };
     switch (this.index) {
-      case 0: return this.job.drove
-        ? { ...POINTS.delivery, text: 'Deliver the canister to Tidelane' }
-        : { x: this.starterKite.x, name: 'Kite Compact',
-          text: this.car === this.starterKite ? 'Drive the orange Kite' : 'Borrow the orange Kite · E' };
       case 1: return { ...POINTS.refuge, text: this.heat ? 'Lose the tail · outrun it or hide at Bluehour' : 'Check in at Bluehour · E' };
       case 2: return this.job.beacon
         ? { ...POINTS.refuge, text: this.heat ? 'Escape the search and return to Bluehour' : 'Return the cartridge to Bluehour · E' }

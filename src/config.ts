@@ -57,7 +57,7 @@ export const TOOLS = [
   { name: 'Signal burst', range: 111, vertical: 56, damage: 50, cooldown: .69, color: '#ff97b7' },
 ];
 export const JOBS = [
-  { title: 'First Light', contact: 'Mara', location: POINTS.contact, reward: 300, line: 'Borrow the orange Kite outside. Run this sealed film canister to Tidelane.' },
+  { title: 'First Light', contact: 'Mara', location: POINTS.contact, reward: 300, line: 'Take this film canister to Tidelane. Borrow the marked Kite, but expect police attention.' },
   { title: 'Tail Lights', contact: 'Mara', location: POINTS.delivery, reward: 420, line: 'They traced the reel. Take the tuned coupe east and lose the tail. Bluehour has a shutter.' },
   { title: 'Dead Air', contact: 'Mara', location: POINTS.refuge, reward: 570, line: 'The Exchange has our recording. Lift the cartridge and get back to Bluehour clean.' },
   { title: 'Cut Across', contact: 'Roux', location: POINTS.race, reward: 630, line: 'First to the far toll wins. Hold the throttle, move around traffic and stay off the wall.' },

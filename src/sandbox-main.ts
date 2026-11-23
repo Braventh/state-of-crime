@@ -170,7 +170,7 @@ function showShop() {
   get('leave-shop').focus();
   resetInput();
 }
-startInput(() => running && !game.shop);
+startInput(() => running && !game.shop, pause);
 let previous = performance.now();
 function label(id: string, value: string) {
   const el = get(id);

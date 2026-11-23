@@ -238,10 +238,10 @@ export class Sandbox {
       : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'W / S  ·  Change lanes / E or X  ·  Exit';
     const pickup = this.pickup;
     if (pickup) {
-      if (pickup.weapon === undefined) return 'E  ·  Pick up cash';
-      const weapon = weapons[pickup.weapon];
-      const ammo = weapon.mag && this.armory.stock[pickup.weapon];
-      return `E  ·  Pick up ${weapon.name}${ammo ? ' ammo' : ''}`;
+      const weapon = pickup.weapon === undefined ? undefined : weapons[pickup.weapon];
+      const ammo = pickup.weapon !== undefined && weapon?.mag && this.armory.stock[pickup.weapon];
+      const parked = this.garageRideLabel;
+      return `E  ·  Pick up ${weapon?.name ?? 'cash'}${ammo ? ' ammo' : ''}${parked ? ' / X  ·  Enter ' + parked : ''}`;
     }
     const door = closeDoor(this.body);
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
@@ -309,8 +309,8 @@ export class Sandbox {
 
   private onFoot(dt: number, input: SandboxInput) {
     const pickup = input.use && this.pickup;
-    const car = (input.use || input.exit) && !this.pickup && !closeDoor(this.body)
-      && (input.use ? this.availableRide : this.garageRide);
+    const car = (input.use || input.exit) && !closeDoor(this.body)
+      && (input.exit && this.garageRide || input.use && !pickup && this.availableRide);
     if (car) {
       this.ride = car;
       this.armory.impact = null;

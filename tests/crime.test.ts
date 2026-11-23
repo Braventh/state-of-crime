@@ -162,6 +162,30 @@ test('Motorworks re-enters the car just exited instead of a closer car of the sa
   assert.notEqual(nearer.color, paint.value);
 });
 
+test('Motorworks lets X re-enter a parked car without collecting nearby loot', () => {
+  const game = new Sandbox();
+  const garage = businesses.find(shop => shop.id === 'paint')!;
+  const car = makeRide('player', garage.x, 'compact');
+  car.taken = true;
+  game.rides = [car];
+  game.ride = car;
+  game.body = bodyAt(car.x);
+  game.step(1 / 60, { ...neutral, exit: true });
+  const cash = { x: game.body.x, y: game.body.y, covered: false, cash: 18 };
+  game.drops.push(cash);
+
+  game.step(1 / 60, { ...neutral, exit: true });
+  assert.equal(game.ride, car);
+  assert.ok(game.drops.includes(cash));
+  game.step(1 / 60, { ...neutral, exit: true });
+  assert.match(game.prompt, /E.*Pick up cash.*X.*Enter Kite Compact/);
+  game.step(1 / 60, { ...neutral, use: true });
+  assert.equal(game.ride, null);
+  assert.equal(game.shop, null);
+  assert.equal(game.cash, 158);
+  assert.ok(!game.drops.includes(cash));
+});
+
 test('Stealing an inbound commuter does not crash it at either driving boundary', () => {
   for (const direction of [1, -1]) {
     const game = new Sandbox();

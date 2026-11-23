@@ -13,8 +13,9 @@ export type Purchase = keyof typeof UPGRADES | 'compact';
 
 const carAt = (x: number, kind: CarKind, owned = false, lane = 0): Vehicle =>
   ({ x, kind, owned, v: 0, lane, yLane: lane, dir: 1, hp: CARS[kind].health });
+const firstKite = { x: 720, name: 'Orange Kite' };
 const spots: [number, CarKind, number][] = [
-  [720, 'compact', 0], [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
+  [firstKite.x, 'compact', 0], [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
   [4300, 'van', 1], [5110, 'compact', 1], [6080, 'coupe', 1], [7150, 'compact', 1],
   [8540, 'van', 0], [9240, 'compact', 1], [10900, 'coupe', 0],
 ];
@@ -79,13 +80,18 @@ export class Game {
   get current() { return JOBS[this.index]; }
   get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
 
-  goal() {
+  goal(): { x: number; name: string; text: string; hint?: string } {
     if (!this.current) return { ...POINTS.garage, text: 'All five jobs cleared. The coast is yours.' };
+    if (this.index === 0) {
+      if (!this.job) return { ...POINTS.contact, text: 'Meet Mara to start First Light',
+        hint: 'A / D to move. Follow the gold marker and press E when prompted.' };
+      if (!this.car && !this.job.drove) return { ...firstKite, text: 'Borrow the orange Kite',
+        hint: 'Walk to the marked car and press E when prompted.' };
+      return { ...POINTS.delivery, text: 'Deliver the canister to Tidelane',
+        hint: this.car ? 'A / D to drive, W / S to change lanes, Space to brake.' : 'Follow the gold marker to Tidelane.' };
+    }
     if (!this.job) return { ...this.current.location, text: 'Meet ' + this.current.contact + ' · ' + this.current.location.name };
     switch (this.index) {
-      case 0: return this.job.drove
-        ? { ...POINTS.delivery, text: 'Deliver the canister to Tidelane' }
-        : { ...POINTS.contact, x: 720, text: 'Borrow the orange Kite · E' };
       case 1: return { ...POINTS.refuge, text: this.heat ? 'Lose the tail · outrun it or hide at Bluehour' : 'Check in at Bluehour · E' };
       case 2: return this.job.beacon
         ? { ...POINTS.refuge, text: this.heat ? 'Escape the search and return to Bluehour' : 'Return the cartridge to Bluehour · E' }
@@ -222,7 +228,7 @@ export class Game {
     }
     if ((brake || c.hp < 25 || Math.abs(c.v) > top * .7) && Math.random() < dt * 22)
       this.sparks(c.x - c.dir * 23, ROAD + c.yLane * TUNE.laneOffset, c.hp < 25 ? '#3c3444' : '#b89b8d', 1);
-    if (this.job && this.index === 0) this.job.drove ||= delta(c.x, 720) > 90;
+    if (this.job && this.index === 0) this.job.drove ||= delta(c.x, firstKite.x) > 90;
   }
 
   private walk(dt: number) {

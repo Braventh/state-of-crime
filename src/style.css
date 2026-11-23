@@ -43,6 +43,7 @@ canvas { width: 100%; height: 100%; display: block; position: absolute; inset: 0
 .job { position: absolute; left: 3%; bottom: 3.8%; width: max-content; max-width: 71%; min-width: 29%; padding: .85cqw 1.3cqw; background: #242033ee; border-left: 2px solid #eb9e8e; }
 #objective { font: 750 clamp(10px, 1.45cqw, 18px) system-ui, sans-serif; color: #ffe4c9; margin: .24cqw 0; }
 #distance { color: #c8adac; text-transform: uppercase; font-size: .91em; }
+#goal-hint { color: #ffe1cd; line-height: 1.35; margin-top: .3em; }
 .tracker { position: absolute; right: 3%; bottom: 5%; width: 19%; padding: .8cqw; background: #272135e0; border: 1px solid #715265; }
 .roadline { height: 3px; background: linear-gradient(90deg, #cc819b 0 33%, #efaa91 33% 64%, #dc986d 64%); margin: .7cqw .12cqw; position: relative; }
 .roadline i { position: absolute; width: .6cqw; height: .6cqw; transform: translate(-50%, -30%) rotate(45deg); background: #ffe0b0; }
@@ -86,7 +87,8 @@ kbd { background: #4d364d; padding: .06em .34em; border: 1px solid #855c72; colo
 .panel { width: min(62%, 680px); max-height: 94%; overflow: auto; padding: 2.6cqw 3cqw; border: 1px solid #9d6c82; border-top: 3px solid #eea48e; background: #231b30f5; box-shadow: 0 14px 55px #100d19ad; }
 .panel h2 { font-size: 5.2cqw; font-weight: 900; letter-spacing: -.09em; color: #ffe1c4; margin: .26cqw 0; }
 .panel p { max-width: 55cqw; }
-.panel .controls { margin-bottom: 1.35cqw; }
+.panel .controls { margin: .7cqw 0; }
+.panel .controls:last-of-type { margin-bottom: 1.35cqw; }
 .panel label { display: block; margin: .65cqw 0; font-size: 1.4cqw; color: #e8c4c1; }
 .panel label span { float: right; font-family: var(--mono); color: #a8dfcc; }
 .panel input { accent-color: #ed9d90; }

@@ -18,7 +18,7 @@ app.innerHTML = `
     <section class="hud" hidden aria-label="Game status">
       <div class="top-left"><div class="caps" id="district"></div><div id="area"></div><div id="vitals"></div></div>
       <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div></div>
-      <div class="job"><div class="caps" id="jobname"></div><div id="objective"></div><div id="distance"></div></div>
+      <div class="job"><div class="caps" id="jobname"></div><div id="objective"></div><div id="distance"></div><div id="goal-hint" hidden></div></div>
       <div class="tracker" aria-label="District map"><div class="roadline"><i id="map-target"></i><i id="map-player"></i></div><div class="maplabels"><span>CROWN</span><span>KEYS</span><span>YARD</span></div></div>
       <div class="interaction" id="interaction"></div>
       <div class="notice" id="notice" role="status"></div>
@@ -39,7 +39,13 @@ const audio = new AudioBed(settings);
 let game: Game | null = null;
 let scene: 'title' | 'play' | 'pause' | 'settings' | 'garage' | 'over' = 'title';
 let settingsFrom: 'title' | 'pause' = 'title';
-const keys = '<kbd>A</kbd> <kbd>D</kbd> Move / drive · <kbd>Shift</kbd> Run · <kbd>Space</kbd> Jump / brake · <kbd>W</kbd> <kbd>S</kbd> Change lanes · <kbd>E</kbd> Interact · <kbd>F</kbd> Attack · <kbd>1</kbd>–<kbd>3</kbd> Tools';
+const directionKeys = '<kbd>A</kbd> <kbd>D</kbd>';
+const interactKey = '<kbd>E</kbd>';
+const pauseKey = '<kbd>Esc</kbd>';
+const controls = `
+  <p class="controls"><b>On foot:</b> ${directionKeys} Move · <kbd>Shift</kbd> Run · <kbd>Space</kbd> Jump · <kbd>F</kbd> Attack · <kbd>1</kbd>–<kbd>3</kbd> Tools</p>
+  <p class="controls"><b>Driving:</b> ${directionKeys} Drive left / right · <kbd>W</kbd> <kbd>S</kbd> Change lanes · <kbd>Space</kbd> Brake</p>
+  <p class="controls"><b>General:</b> ${interactKey} Interact when prompted · ${pauseKey} Pause / resume</p>`;
 const btn = (id: string, text: string, primary = false, disabled = false) =>
   '<button type="button" data-action="' + id + '" class="' + (primary ? 'primary' : 'secondary') + '"' + (disabled ? ' disabled' : '') + '>' + text + '</button>';
 const carKeys = Object.keys(CARS) as CarKind[];
@@ -62,14 +68,14 @@ function goto(s: typeof scene) {
         <div class="eyebrow"><i></i> SOUTHLINE ARCADE PRESENTS <span>001</span></div>
         <h1><small>STATE OF</small><em>CRIME<span>.</span></em></h1>
         <div class="tagline">Five jobs. One crooked coast.</div>
-        <p>Run the road from Crownwater neon to the far freight yards. Keep the signal alive and the law in your mirrors.</p>
+        <p>Start in Crownwater. Look for Mara under the gold marker to pick up your first job.</p>
         <div class="buttons">${btn('new', 'New game <span>↗</span>', true)}${btn('continue', 'Continue', false, !loadSave())}${btn('settings', 'Settings')}</div>
       </div>
       <div class="stamp"><div>24° N &nbsp; / &nbsp; 81° W</div><strong>THE<br>PALMETTO<br>TAPES</strong><span>EPISODE 01 — OPEN ROAD</span></div>
-      <div class="title-controls"><b>FIELD CONTROLS</b> ${keys}</div>`;
+      <div class="title-controls"><b>GET STARTED</b> ${directionKeys} Move · ${interactKey} Interact · ${pauseKey} Pause / all controls</div>`;
   }
   if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', 'The coast can wait.',
-    btn('resume', 'Resume ↗', true) + btn('settings', 'Settings') + btn('title', 'Main menu'), '<p class="controls">' + keys + '</p>');
+    btn('resume', 'Resume ↗', true) + btn('settings', 'Settings') + btn('title', 'Main menu'), controls);
   if (s === 'settings') overlay.innerHTML = panel('OPTIONS / AUDIO & DISPLAY', 'Settings.', 'Settings are saved on this browser.', btn('back', 'Back ↗', true),
     `<label>Master volume <span id="volume-label">${Math.round(settings.volume * 100)}%</span><input id="volume" type="range" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
     <label class="toggle">Mute <input id="mute" type="checkbox" ${settings.mute ? 'checked' : ''}></label>
@@ -135,17 +141,22 @@ function updateHud(g: Game) {
   $('pursuit').textContent = g.heat ? g.search > 0 ? 'SEARCH / ' + Math.max(0, TUNE.police.search[g.heat] - g.search).toFixed(1) + 's'
     : ['', 'SUSPICION', 'IN PURSUIT', 'HEAVY PURSUIT', 'MAXIMUM THREAT'][g.heat] : 'CLEAR SIGNAL';
   const goal = g.goal();
-  $('jobname').textContent = g.current ? '0' + (g.index + 1) + ' / ' + (g.job ? g.current.title : 'New contact') : '05 / 05 · CAMPAIGN COMPLETE';
+  $('jobname').textContent = g.current ? '0' + (g.index + 1) + ' / ' + (g.job || goal.hint ? g.current.title : 'New contact') : '05 / 05 · CAMPAIGN COMPLETE';
   $('objective').textContent = goal.text;
   const gap = goal.x - g.x;
   const status = g.car ? CARS[g.car.kind].label + ' · ' + Math.round(Math.abs(g.car.v) * .34) + ' KM/H · ' + Math.max(0, Math.ceil(g.car.hp)) + ' INTEGRITY'
     : TOOLS[g.weapon].name + (g.weapon ? ' · ' + g.charge + ' charge' : ' · F');
-  $('distance').textContent = (g.current ? (Math.abs(gap) < 80 ? 'HERE' : (gap > 0 ? '→ ' : '← ') + Math.round(Math.abs(gap) / 9) + ' M') + '  /  ' : '') + status;
+  const meters = Math.round(Math.abs(gap) / 9);
+  const distance = !goal.hint && Math.abs(gap) < 80 ? 'HERE' : (meters ? (gap > 0 ? '→ ' : '← ') : '') + meters + ' M';
+  $('distance').textContent = goal.hint && !g.car && !g.weapon ? distance : (g.current ? distance + '  /  ' : '') + status;
+  $('goal-hint').textContent = goal.hint ?? '';
+  $('goal-hint').hidden = !goal.hint;
   $('map-player').style.left = clamp(g.x / LIMIT * 100, 0, 100) + '%';
   $('map-target').style.left = clamp(goal.x / LIMIT * 100, 0, 100) + '%';
   $('map-target').hidden = !g.current;
-  $('interaction').textContent = g.prompt();
-  $('interaction').hidden = !g.prompt();
+  const prompt = g.prompt();
+  $('interaction').textContent = prompt;
+  $('interaction').hidden = !prompt;
   if (g.notice) {
     $('notice').dataset.kind = g.notice.kind;
     const heading = document.createElement('strong'), detail = document.createElement('span');

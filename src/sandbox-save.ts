@@ -100,8 +100,8 @@ export function sandboxStorage(initial: SandboxSave, storage: Pick<Storage, 'get
 }
 export const savedHeight = (save: SandboxSave) => save.covered ? CELLAR : STREET;
 
-export function recoverCheckpoint(save: SandboxSave, wanted: boolean): SandboxSave {
-  const recovered = { ...save, hp: 70 };
+export function recoverCheckpoint(save: SandboxSave, wanted: boolean, liveHeat = save.heat): SandboxSave {
+  const recovered = { ...save, hp: 70, heat: Math.max(save.heat, liveHeat) };
   if (!wanted || save.covered) return recovered;
   const distance = (p: (typeof passages)[number]) => Math.min(...p.doors.map(x => Math.abs(x - save.x)));
   const shelter = passages.reduce((nearest, p) => distance(p) < distance(nearest) ? p : nearest);

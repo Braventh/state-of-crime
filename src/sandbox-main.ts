@@ -227,7 +227,7 @@ function frame(now: number) {
       pause.disabled = true;
       if (checkpoint) {
         const wanted = game.police.level > 0;
-        checkpoint = recoverCheckpoint(checkpoint, wanted);
+        checkpoint = recoverCheckpoint(checkpoint, wanted, game.police.points);
         if (wanted) persist(checkpoint);
       }
       setRunning(false);

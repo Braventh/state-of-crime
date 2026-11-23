@@ -172,6 +172,32 @@ test('A wanted knockout retries from the nearest cover without losing progress o
   assert.equal(restored.rides[0].color, game.ride.color);
 });
 
+test('A crime committed on the knockout frame retains its wanted heat when retrying or reloading', () => {
+  const game = new Sandbox();
+  const gang = game.actors.find(actor => actor.faction === 0)!;
+  gang.hostile = true;
+  game.body = bodyAt(gang.x + 10);
+  game.actors = [gang];
+  game.hp = 1;
+  game.armory.supply(2);
+  const checkpoint = game.snapshot();
+  assert.equal(checkpoint.heat, 0);
+
+  game.step(1 / 60, { ...neutral, fire: true });
+  assert.equal(game.hp, 0);
+  assert.ok(game.police.level > 0);
+
+  const retry = recoverCheckpoint(checkpoint, game.police.level > 0, game.police.points);
+  const reloaded = decodeSandbox(JSON.stringify(retry));
+  assert.ok(reloaded);
+  for (const save of [retry, reloaded]) {
+    const restored = new Sandbox();
+    restored.restore(save);
+    assert.equal(restored.body.covered, true);
+    assert.equal(restored.police.level, game.police.level);
+  }
+});
+
 test('Reloading preserves distance from a rooftop search, and older saves still load', () => {
   const game = new Sandbox();
   game.body = bodyAt(1600);

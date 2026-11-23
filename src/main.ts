@@ -117,7 +117,8 @@ overlay.addEventListener('click', e => {
   if (action === 'new') {
     if (loadSave() && !window.confirm('Replace the current checkpoint with a new game?')) return;
     start(fresh(), true);
-  } else if (action === 'continue' || action === 'retry') start(loadSave() ?? fresh());
+  } else if (action === 'continue') start(loadSave() ?? fresh());
+  else if (action === 'retry' && game) { game = game.retry(); goto('play'); }
   else if (action === 'settings') {
     settingsFrom = scene === 'pause' ? 'pause' : 'title';
     goto('settings');

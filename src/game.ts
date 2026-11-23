@@ -7,15 +7,16 @@ export interface Person { x: number; home: number; y: number; dir: number; hp: n
 export interface Unit { x: number; v: number; lane: number; dir: number; heavy: boolean; target: number }
 export interface Dust { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 type Action = 'confirm' | 'door' | 'alert' | 'hit' | 'reward' | 'jump' | 'step' | 'bad';
-type JobStatus = { time: number; drove: boolean; beacon: boolean; rival: number };
+type JobStatus = { time: number; drove: boolean; driveStart: number; beacon: boolean; rival: number };
 interface Signal { title: string; detail: string; kind: 'good' | 'bad' | 'info'; age: number }
 export type Purchase = keyof typeof UPGRADES | 'compact';
 
 const carAt = (x: number, kind: CarKind, owned = false, lane = 0): Vehicle =>
   ({ x, kind, owned, v: 0, lane, yLane: lane, dir: 1, hp: CARS[kind].health });
-const firstKite = { x: 720, name: 'Orange Kite' };
+const STARTER_KITE_X = 720;
+const LANE_SHIFT_SPEED = 5.4;
 const spots: [number, CarKind, number][] = [
-  [firstKite.x, 'compact', 0], [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
+  [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
   [4300, 'van', 1], [5110, 'compact', 1], [6080, 'coupe', 1], [7150, 'compact', 1],
   [8540, 'van', 0], [9240, 'compact', 1], [10900, 'coupe', 0],
 ];
@@ -32,7 +33,8 @@ export class Game {
   lastSeen = START;
   hide = false;
   units: Unit[] = [];
-  cars = spots.map(([x, kind, lane]) => carAt(x, kind, false, lane));
+  private starterKite = carAt(STARTER_KITE_X, 'compact');
+  cars = [this.starterKite, ...spots.map(([x, kind, lane]) => carAt(x, kind, false, lane))];
   traffic: Vehicle[] = [];
   people: Person[] = [];
   dust: Dust[] = [];
@@ -85,9 +87,9 @@ export class Game {
     if (this.index === 0) {
       if (!this.job) return { ...POINTS.contact, text: 'Meet Mara to start First Light',
         hint: 'A / D to move. Follow the gold marker and press E when prompted.' };
-      if (!this.car && !this.job.drove) return { ...firstKite, text: 'Borrow the orange Kite',
-        hint: 'Walk to the marked car and press E when prompted.' };
-      return { ...POINTS.delivery, text: 'Deliver the canister to Tidelane',
+      if (this.car !== this.starterKite && !this.job.drove) return { x: this.starterKite.x, name: 'Orange Kite', text: 'Borrow the orange Kite',
+        hint: this.car ? 'Press E to exit, then walk to the marked car.' : 'Walk to the marked car and press E when prompted.' };
+      return { ...POINTS.delivery, text: this.job.drove ? 'Deliver the canister to Tidelane' : 'Drive the orange Kite to Tidelane',
         hint: this.car ? 'A / D to drive, W / S to change lanes, Space to brake.' : 'Follow the gold marker to Tidelane.' };
     }
     if (!this.job) return { ...this.current.location, text: 'Meet ' + this.current.contact + ' · ' + this.current.location.name };
@@ -110,6 +112,8 @@ export class Game {
     this.progress.x = Math.round(x);
     this.storageOK = storeSave(this.progress);
   }
+
+  retry() { return new Game(this.progress, this.sound); }
 
   reportCrime(level: number) {
     const prior = this.heat;
@@ -206,7 +210,7 @@ export class Game {
     const top = kind.speed * (tuned ? 1.22 : 1);
     const up = tap('KeyW', 'ArrowUp'), down = tap('KeyS', 'ArrowDown');
     if (up || down) c.lane = clamp(c.lane + Number(down) - Number(up), -1, 1);
-    c.yLane = toward(c.yLane, c.lane, dt * 5.4);
+    c.yLane = toward(c.yLane, c.lane, dt * LANE_SHIFT_SPEED);
     c.v = toward(c.v, brake ? 0 : direction * top, dt * (brake ? kind.grip
       : !direction ? kind.coast : Math.sign(c.v) === -direction ? kind.grip : kind.accel * (tuned ? 1.16 : 1)));
     if (Math.abs(c.v) > 9) c.dir = Math.sign(c.v);
@@ -223,12 +227,13 @@ export class Game {
         this.hurt(10, -c.dir);
         if (Math.abs(c.v) > 135 && this.intake <= 0 && !this.heat && this.index !== 3) this.reportCrime(TUNE.crime.theft);
       }
-      t.lane = t.dir > 0 ? 1 : -1;
+      t.lane = c.lane === 0 ? -t.dir : 0;
       c.v = Math.sign(c.v) * Math.min(Math.abs(c.v), 145);
     }
     if ((brake || c.hp < 25 || Math.abs(c.v) > top * .7) && Math.random() < dt * 22)
       this.sparks(c.x - c.dir * 23, ROAD + c.yLane * TUNE.laneOffset, c.hp < 25 ? '#3c3444' : '#b89b8d', 1);
-    if (this.job && this.index === 0) this.job.drove ||= delta(c.x, firstKite.x) > 90;
+    if (this.job && this.index === 0 && c === this.starterKite)
+      this.job.drove ||= delta(c.x, this.job.driveStart) > 90;
   }
 
   private walk(dt: number) {
@@ -334,7 +339,12 @@ export class Game {
 
   private startJob() {
     if (!this.current) return;
-    this.job = { time: 0, drove: false, beacon: false, rival: 0 };
+    if (this.index === 0 && this.starterKite.hp <= 0) {
+      this.cars = this.cars.filter(c => c !== this.starterKite);
+      this.starterKite = carAt(STARTER_KITE_X, 'compact');
+      this.cars.push(this.starterKite);
+    }
+    this.job = { time: 0, drove: false, driveStart: this.starterKite.x, beacon: false, rival: 0 };
     this.say(this.current.title, this.current.line);
     this.sound('confirm');
     if (this.index === 1 || this.index === 3) {
@@ -491,6 +501,7 @@ export class Game {
       else { this.walk(dt); this.fight(); }
     }
     for (const t of this.traffic) {
+      t.yLane = toward(t.yLane, t.lane, dt * LANE_SHIFT_SPEED);
       t.x += t.v * dt;
       if (t.x > LIMIT + 95) t.x = -95;
       if (t.x < -95) t.x = LIMIT + 95;

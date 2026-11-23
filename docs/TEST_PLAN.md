@@ -11,3 +11,4 @@ Use Node 22.12+, run `npm ci`, `npm test`, `npm run build` and `npm run preview 
 7. Purchase and select a van and upgrade at Sidecar; use restock and stage ride. Check cash, ownership, return after hard reload, and resume via Continue.
 8. Make a corrupt checkpoint and reload; Continue should be disabled, settings preserved, and New Game recoverable. Unit tests cover format and validation.
 9. Resize the frame and inspect HUD/menus, run with reduced motion, and check for console errors. Chrome desktop is the initial target; record other engines/device types only when exercised.
+   - At 390×844 and 640×360, start First Light, exit and re-enter the borrowed Kite to reach heat 2, then switch to the lowest lane and wait for a patrol. Confirm the RAM cue is visible before impact and that the objective, hint, exit prompt, and speed/integrity readout are all unobscured.

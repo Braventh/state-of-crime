@@ -84,6 +84,9 @@ export class Game {
   get index() { return this.progress.completed; }
   get current() { return JOBS[this.index]; }
   get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
+  private get onExchangeRoof() {
+    return !this.car && delta(this.x, POINTS.exchange.x) < 46 && Math.abs(this.body.y - EXCHANGE_ROOF) <= 3;
+  }
 
   goal(): { x: number; name: string; text: string; hint?: string } {
     if (!this.current) return { ...POINTS.garage, text: 'All five jobs cleared. The coast is yours.' };
@@ -104,7 +107,7 @@ export class Game {
       case 1: return { ...POINTS.refuge, text: this.heat ? 'Lose the tail · outrun it or hide at Bluehour' : 'Check in at Bluehour · E' };
       case 2: return this.job.beacon
         ? { ...POINTS.refuge, text: this.heat
-          ? this.body.y <= EXCHANGE_ROOF + 3 && !this.car
+          ? this.onExchangeRoof
             ? 'Stay on the roof to lose the search, or flee'
             : 'Escape the search and return to Bluehour'
           : 'Return the cartridge to Bluehour · E' }
@@ -151,10 +154,11 @@ export class Game {
     }
     const level = this.heat;
     const range = TUNE.police.range[level];
-    if (!this.hide && this.units.some(u => delta(u.x, this.x) < range)) {
+    const covered = this.hide || (this.index === 2 && this.job?.beacon && this.onExchangeRoof);
+    if (!covered && this.units.some(u => delta(u.x, this.x) < range)) {
       this.lastSeen = this.x;
       this.search = 0;
-    } else if (this.hide || delta(this.x, this.lastSeen) > TUNE.police.placeDistance ||
+    } else if (covered || delta(this.x, this.lastSeen) > TUNE.police.placeDistance ||
       (this.body.y < ROAD - 35 && !this.car)) {
       this.search += dt;
     } else {
@@ -168,7 +172,7 @@ export class Game {
       this.sound('confirm');
       return;
     }
-    if (!this.hide && this.search === 0 && this.units.length < level && this.intake <= 0) {
+    if (!covered && this.search === 0 && this.units.length < level && this.intake <= 0) {
       const heading = this.car?.dir ?? this.body.dir;
       const side = level >= 3 && this.units.length % 2 ? heading : -heading;
       let spawn = this.x + side * (TUNE.police.spawn + this.units.length * 88);
@@ -181,7 +185,7 @@ export class Game {
     }
     this.units = this.units.filter(u => delta(u.x, this.x) < 1430);
     for (const u of this.units) {
-      const tracking = !this.hide && (delta(u.x, this.x) < range || this.search === 0);
+      const tracking = !covered && (delta(u.x, this.x) < range || this.search === 0);
       u.target = tracking ? this.x : this.lastSeen;
       const gap = u.target - u.x;
       const dir = Math.sign(gap) || u.dir;
@@ -467,7 +471,7 @@ export class Game {
     if (this.job) {
       if (this.index === 1 && !this.heat && near(POINTS.refuge.x))
         return { label: 'Check in with Mara', run: () => this.finish() };
-      if (this.index === 2 && !this.job.beacon && near(POINTS.exchange.x, 46) && !this.car && this.body.y <= EXCHANGE_ROOF + 3)
+      if (this.index === 2 && !this.job.beacon && this.onExchangeRoof)
         return { label: 'Take the cartridge', run: () => { this.job!.beacon = true; this.reportCrime(TUNE.crime.exchange); } };
       if (this.index === 2 && this.job.beacon && !this.heat && near(POINTS.refuge.x))
         return { label: 'Hand off the cartridge', run: () => this.finish() };

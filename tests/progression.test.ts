@@ -73,7 +73,7 @@ test('Dead Air gates the cartridge to the roof and lets the player wait out the 
   press(game, 'KeyE');
   assert.equal(game.job?.beacon, false);
   game.reportCrime(2);
-  game.units.push({ x: game.x - 25, v: 0, lane: 0, dir: 1, heavy: false, target: game.x });
+  game.units.push({ x: game.x - 25, v: 0, lane: 0, dir: 1, heavy: false, ramAt: 0, readyAt: 0 });
   game.step(1 / 60);
   assert.equal(game.search, 0);
   game.body.y = EXCHANGE_ROOF;

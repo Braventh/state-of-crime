@@ -50,7 +50,8 @@ export const TUNE = {
     search: [0, 3.5, 4.5, 5.5, 6.5],
     range: [0, 195, 240, 305, 367],
     speed: [0, 169, 235, 265, 291],
-    spawn: 530, placeDistance: 460, hideDistance: 120,
+    spawn: 530, placeDistance: 460, hideDistance: 120, hideSpeed: 105,
+    ramRange: 120, ramWindup: .45, ramRecovery: .95,
   },
   laneOffset: 24, raceTime: 13, raceRival: { speed: 258, swing: 16 }, getawayTime: 58,
 };

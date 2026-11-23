@@ -11,6 +11,6 @@ All core tuning in [config.ts](../src/config.ts); positions are logical canvas u
 
 On foot: 145 walk speed, 211 sprint, 343 jump impulse, 930 gravity; 100 ms of coyote time and 120 ms of input buffering. Palm strike is free with short reach; Arc caster favors reach and can hit the sentries from below; Signal burst trades reach for power. Both ranged tools draw from the same 14-charge pool.
 
-Search takes 3.5–6.5 s after breaking contact or hiding, scaled to heat. Units spawn at least 530 units away and only during pursuit; the three cases most useful to testers are a quick route away from a level-1 unit, the faster loaner at level 2, and the ability to get into a refuge before contact at high heat.
+Search takes 3.5–6.5 s after breaking contact and leaving the last-known area, or hiding in a refuge. Units spawn at least 530 units away and move toward the last reported position until a patrol spots the player. At heat 2 and above, a RAM marker warns of an incoming hit; jumping or switching lanes can make it miss. Heavy units hit harder at heat 4.
 
 Initial $120 plus job one funds the $420 engine tune. The faster route to upgrades is the Sidecar Outpost just east of Bluehour after Tail Lights. Armor is $340, a van $520 and a coupe $680. An engine tune adds 22% top speed and 16% acceleration; armor absorbs 32% of incoming damage. Both apply only to Sidecar rides, not loaners. Payouts are one-time; all permanent items can be bought with campaign earnings without grinding.

@@ -93,7 +93,8 @@ export class Game {
       : this.saveStatus === 'unavailable' ? 'Browser storage unavailable. Your checkpoint is kept in this tab only.' : '';
   }
   private get onExchangeRoof() {
-    return !this.car && delta(this.x, POINTS.exchange.x) < 46 && Math.abs(this.body.y - EXCHANGE_ROOF) <= 3;
+    return !this.car && this.x >= EXCHANGE_ROOF.x - 3 && this.x <= EXCHANGE_ROOF.x + EXCHANGE_ROOF.width + 3
+      && Math.abs(this.body.y - EXCHANGE_ROOF.y) <= 3;
   }
   get nearestRefuge() {
     return HIDEOUTS.reduce((closest, p) => delta(p.x, this.x) < delta(closest.x, this.x) ? p : closest);
@@ -493,7 +494,7 @@ export class Game {
     if (this.job) {
       if (this.index === 1 && !this.heat && near(POINTS.refuge.x))
         return { label: 'Check in with Mara', run: () => this.finish() };
-      if (this.index === 2 && !this.job.beacon && this.onExchangeRoof)
+      if (this.index === 2 && !this.job.beacon && near(POINTS.exchange.x, 46) && this.onExchangeRoof)
         return { label: 'Take the cartridge', run: () => { this.job!.beacon = true; this.reportCrime(TUNE.crime.exchange); } };
       if (this.index === 2 && this.job.beacon && !this.heat && near(POINTS.refuge.x))
         return { label: 'Hand off the cartridge', run: () => this.finish() };

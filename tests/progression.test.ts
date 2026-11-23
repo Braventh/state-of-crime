@@ -76,13 +76,17 @@ test('Dead Air gates the cartridge to the roof and lets the player wait out the 
   game.units.push({ x: game.x - 25, v: 0, lane: 0, dir: 1, heavy: false, ramAt: 0, readyAt: 0 });
   game.step(1 / 60);
   assert.equal(game.search, 0);
-  game.body.y = EXCHANGE_ROOF;
+  game.body.y = EXCHANGE_ROOF.y;
   game.body.vy = 0;
   assert.equal(game.prompt(), 'Take the cartridge');
   press(game, 'KeyE');
   assert.equal(game.job?.beacon, true);
   assert.match(game.goal().text, /Stay on the roof/);
   assert.ok(game.search > 0);
+  game.body.x = EXCHANGE_ROOF.x + 10;
+  game.step(1 / 60);
+  assert.equal(game.spotted, false);
+  assert.ok(game.search > 1 / 60);
   for (let i = 0; i < (TUNE.police.search[game.heat] + 1) * 60; i++) game.step(1 / 60);
   assert.equal(game.heat, 0);
   game.body.x = POINTS.refuge.x;

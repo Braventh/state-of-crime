@@ -25,11 +25,11 @@ export const POINTS = {
 };
 export const HIDEOUTS = [POINTS.garage, POINTS.refuge];
 export const GARAGES = [POINTS.garage, POINTS.outpost];
-export const EXCHANGE_ROOF = ROAD - 108;
+export const EXCHANGE_ROOF = { x: 3040, width: 134, y: ROAD - 108 };
 export const PLATFORMS = [
   { x: 2780, width: 102, y: ROAD - 42 },
   { x: 2880, width: 145, y: ROAD - 83 },
-  { x: 3040, width: 134, y: EXCHANGE_ROOF },
+  EXCHANGE_ROOF,
   { x: 9500, width: 95, y: ROAD - 38 },
   { x: 9630, width: 108, y: ROAD - 70 },
   { x: 9750, width: 138, y: ROAD - 105 },

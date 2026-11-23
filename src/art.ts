@@ -263,7 +263,7 @@ function human(c: Ctx, x: number, y: number, dir: number, gait: number, coat: st
   box(c, '#ca8e78', 8 - stride, -20, 4, 4);
   c.restore();
 }
-function vehicle(c: Ctx, x: number, y: number, kind: Vehicle['kind'], dir: number, v: number, color: string,
+export function vehicle(c: Ctx, x: number, y: number, kind: Vehicle['kind'], dir: number, v: number, color: string,
   clock: number, police = false, heavy = false, player = false) {
   const spec = CARS[kind], w = spec.width, h = spec.height;
   c.save(); c.translate(Math.round(x), Math.round(y)); c.scale(dir, 1);

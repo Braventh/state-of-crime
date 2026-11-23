@@ -16,6 +16,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .dock { border-top: 1px solid #4c3b45; }
 .dock strong { color: #edbb99; white-space: nowrap; }
 .dock #prompt { text-align: center; color: #c3e5d7; }
+.dock #status { white-space: nowrap; color: #f9cc9f; font-variant-numeric: tabular-nums; }
 .shade { position: absolute; inset: 0; display: grid; place-items: center; padding: .5rem; overflow: auto; background: #171521a8; }
 .shade[hidden] { display: none; }
 .card { width: min(100%, 26rem); padding: clamp(.65rem, 2.4vw, 1.65rem); border: 1px solid #aa796e; background: #251e2bf5; box-shadow: 0 8px 48px #100e17a0; }
@@ -30,4 +31,5 @@ canvas { display: block; width: 100%; height: 100%; }
 .card label { display: inline-flex; gap: .22rem; align-items: center; margin-right: .2rem; }
 .card input[type=range] { width: 3.5rem; }
 @media (max-width: 650px) { .edition, .mast small { display: none; } }
+@media (max-width: 480px) { .dock { display: grid; grid-template-columns: auto auto; gap: .2rem .75rem; } .dock #prompt { text-align: right; } .dock #status { text-align: right; } }
 @media (max-height: 390px) { .mast, .dock { min-height: 28px; padding-block: .22rem; } }

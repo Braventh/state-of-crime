@@ -24,6 +24,8 @@ app.innerHTML = `
           <div><dt>Jump / interact</dt><dd>Space / E</dd></div>
           <div><dt>Attack / aim / reload</dt><dd>F / hold Q (+ W S) / R</dd></div>
           <div><dt>Weapon slots</dt><dd>1–6</dd></div>
+          <div><dt>Rob</dt><dd>G near a target</dd></div>
+          <div><dt>Drive / lanes / brake</dt><dd>A D / W S / Space</dd></div>
           <div><dt>Pause</dt><dd>Esc</dd></div></dl>
           <label>Volume <input id="volume" type="range" min="0" max="1" step=".05"></label>
           <label><input id="mute" type="checkbox"> Mute</label>
@@ -32,7 +34,7 @@ app.innerHTML = `
       </section>
     </div>
   </section>
-  <footer class="dock"><strong id="block">Lantern Row</strong><span id="prompt"></span><span id="equipment"></span></footer>`;
+  <footer class="dock"><strong id="block">Lantern Row</strong><span id="prompt"></span><span id="equipment"></span><span id="status"></span></footer>`;
 const get = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = app.querySelector('canvas')!;
 const context = canvas.getContext('2d', { alpha: false })!;
@@ -92,7 +94,8 @@ function frame(now: number) {
       side: Number(held('KeyD', 'ArrowRight')) - Number(held('KeyA', 'ArrowLeft')),
       vertical, jump: tap('Space'), fast: held('ShiftLeft', 'ShiftRight'), use: tap('KeyE'),
       aim: held('KeyQ'), incline: vertical, reload: tap('KeyR'), fire: held('KeyF') || tap('KeyF'),
-      slot: slot < 0 ? undefined : slot as WeaponId,
+      slot: slot < 0 ? undefined : slot as WeaponId, rob: tap('KeyG'), brake: held('Space'),
+      laneChange: Number(tap('KeyS', 'ArrowDown')) - Number(tap('KeyW', 'ArrowUp')),
     });
     if (!game.hp) {
       setRunning(false);
@@ -103,12 +106,14 @@ function frame(now: number) {
     }
   }
   clearEdges();
-  audio.step(0, 0, false, running);
+  audio.step(Math.abs(game.ride?.v ?? 0), 0, Boolean(game.ride), running);
   renderSandbox(context, game, started ? game.time : now / 1000, settings.reduced);
   label('block', game.block.name);
-  label('prompt', started ? game.prompt : 'No jobs. No fixed route.');
+  label('prompt', started ? game.noticeTime && game.notice ? game.notice : game.prompt : 'No jobs. No fixed route.');
   const { gun, ammo, loading } = game.armory;
-  label('equipment', gun.mag ? `${gun.name} · ${loading ? 'Reloading' : ammo.rounds + ' / ' + ammo.reserve}` : gun.name);
+  label('equipment', game.ride ? `${Math.round(Math.abs(game.ride.v) / 3.9)} mph · ${Math.ceil(game.ride.hp)} integrity`
+    : gun.mag ? `${gun.name} · ${loading ? 'Reloading' : ammo.rounds + ' / ' + ammo.reserve}` : gun.name);
+  label('status', `HP ${game.hp} · $${game.cash}`);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

@@ -1,8 +1,13 @@
+import { vehicle } from './art.ts';
 import { portrait } from './character-art.ts';
 import { weapons } from './combat.ts';
 import { W } from './config.ts';
+import { businesses } from './crime.ts';
+import { STREET } from './district.ts';
 import { form, lettering, renderDistrict } from './district-art.ts';
 import type { Sandbox } from './sandbox.ts';
+import { factions } from './street-life.ts';
+import { rideY } from './vehicles.ts';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -10,7 +15,21 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
   renderDistrict(c, game.body, game.camera, time, reduced, context => {
     const cam = game.camera;
     const visible = (x: number) => x > cam - 70 && x < cam + W + 70;
-    for (const actor of game.actors) if (visible(actor.x) && actor.down < 3) portrait(context, actor);
+    for (const shop of businesses) if (visible(shop.x)) {
+      const { x } = shop, y = STREET - 73, half = 14 + shop.name.length * 3.25;
+      form(context, '#272333', x - half - 3, y + 6, x - half, y - 10, x + half, y - 10, x + half + 3, y + 6);
+      lettering(context, shop.name.toUpperCase(), x, y + 1, shop.color, 10);
+    }
+    for (const actor of game.actors) if (visible(actor.x) && actor.down < 3) {
+      portrait(context, actor);
+      if (actor.faction !== undefined && actor.hostile && actor.hp)
+        lettering(context, factions[actor.faction].name.toUpperCase(), actor.x, actor.y - 70, '#f2a48f', 8);
+    }
+    for (const lane of [-1, 0, 1]) for (const ride of game.rides) {
+      if (!visible(ride.x) || Math.round(ride.depth) !== lane) continue;
+      vehicle(context, ride.x, rideY(ride), ride.kind, ride.dir, ride.v, ride.hp > 0 ? ride.color : '#524b57',
+        reduced ? 0 : time, false, false, ride === game.ride);
+    }
     for (const drop of game.drops) {
       if (!visible(drop.x)) continue;
       const bob = reduced ? 0 : Math.sin(time * 4 + drop.x) * 3;
@@ -29,7 +48,7 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       context.stroke();
       form(context, '#fff1b0', trace.x - 5, trace.y - 3, trace.x, trace.y - 7, trace.x + 7, trace.y, trace.x + 3, trace.y + 4);
     }
-    portrait(context, { ...game.body, outfit: game.outfit, hair: game.hair, skin: 1, hit: game.hit,
+    if (!game.ride) portrait(context, { ...game.body, outfit: game.outfit, hair: game.hair, skin: 1, hit: game.hit,
       down: game.hp ? 0 : .25, pose, aim: aiming, slope, weapon: slot, reload: loading > 0 });
   });
 }

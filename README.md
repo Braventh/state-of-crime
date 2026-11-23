@@ -20,7 +20,7 @@ Open [http://localhost:4176/](http://localhost:4176/) in a desktop browser. Use 
 | W / S or ↑ / ↓ | Climb a fire escape | Move one lane |
 | Space | Jump | Brake |
 | E | Interact, enter, pick up or steal | Exit at low speed; open Prism Motorworks when parked nearby |
-| X | — | Exit at low speed, including at Prism |
+| X | Re-enter a previously taken vehicle near Prism Motorworks | Exit at low speed, including at Prism |
 | G | Rob a nearby pedestrian or shop | — |
 | F / Q / R | Hold F to attack; hold Q to aim (W/S angles the shot); R reloads | — |
 | 1–6 | Fists, pipe, pistol, shotgun, SMG, rifle (once acquired) | — |

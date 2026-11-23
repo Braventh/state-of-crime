@@ -1,7 +1,7 @@
 import './sandbox.css';
 import { AudioBed } from './audio.ts';
 import type { WeaponId } from './combat.ts';
-import { CARS, H, W } from './config.ts';
+import { H, W } from './config.ts';
 import { DISTRICT_WIDTH } from './district.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
@@ -15,6 +15,7 @@ app.innerHTML = `
   <header class="mast"><span>STATE OF CRIME</span><div class="radio"><span id="stars" aria-label="Wanted level"></span><small id="pursuit"></small></div><button id="pause">Pause <kbd>Esc</kbd></button></header>
   <section class="stage" aria-label="Crownwater">
     <canvas width="${W}" height="${H}" aria-label="Side-scrolling Crownwater sandbox"></canvas>
+    <div id="vehicle-notice" role="status" hidden></div>
     <div id="menu" class="shade">
       <section class="card">
         <p class="eyebrow">THE CITY AFTER DARK</p>
@@ -157,8 +158,8 @@ function showShop() {
   const stock = get('stock-list');
   const message = get('shop-message');
   const back = get('leave-shop');
-  const car = game.garageRide;
-  const target = car ? ` · Vehicle: ${CARS[car.kind].label}` : '';
+  const car = game.garageRideLabel;
+  const target = car ? ` · Vehicle: ${car}` : '';
   get('shop-title').textContent = market.name;
   message.textContent = `Available cash $${game.cash}${target}`;
   get('disguise-tip').textContent = items.some(isCosmetic)
@@ -243,7 +244,11 @@ function frame(now: number) {
   renderSandbox(context, game, started ? game.time : now / 1000, settings.reduced);
   label('block', game.block.name);
   get('location').style.left = `${(100 * game.body.x / DISTRICT_WIDTH).toFixed(2)}%`;
-  label('prompt', started ? game.noticeTime && game.notice ? game.notice : game.prompt : 'No jobs. No fixed route.');
+  const notice = game.noticeTime ? game.notice : '';
+  const vehicleNotice = started && running && !game.shop && game.ride ? notice : '';
+  label('vehicle-notice', vehicleNotice);
+  get('vehicle-notice').hidden = !vehicleNotice;
+  label('prompt', started ? (!game.ride && notice) || game.prompt : 'No jobs. No fixed route.');
   label('equipment', game.ride ? `${Math.round(Math.abs(game.ride.v) / 3.9)} mph · ${Math.ceil(game.ride.hp)} integrity`
     : game.armory.readout);
   label('status', `HP ${game.hp} · $${game.cash}`);

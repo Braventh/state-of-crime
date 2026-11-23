@@ -31,6 +31,7 @@ export class Sandbox {
   police = new Police();
   rides = fleet();
   ride: Ride | null = null;
+  private lastExitedRide?: Ride;
   armory = new Armory();
   actors = streetLife();
   drops: Drop[] = [
@@ -62,11 +63,20 @@ export class Sandbox {
     let min = 52;
     for (const car of this.rides) {
       const gap = Math.abs(car.x - this.body.x);
-      if (!car.taken || !stopped(car) || gap >= min) continue;
-      parked = car;
-      min = gap;
+      if (!car.taken || !stopped(car) || gap >= 52) continue;
+      if (car === this.lastExitedRide) return car;
+      if (gap < min) {
+        parked = car;
+        min = gap;
+      }
     }
     return parked;
+  }
+  get garageRideLabel() {
+    const car = this.garageRide;
+    if (!car) return;
+    const target = car === this.ride ? 'current car' : car === this.lastExitedRide ? 'your last car' : 'nearest parked car';
+    return `${CARS[car.kind].label} (${target})`;
   }
   get ammoPackRounds() {
     const { gun, ammo } = this.armory;
@@ -224,8 +234,8 @@ export class Sandbox {
   }
 
   private get interactionPrompt() {
-    if (this.ride) return Math.abs(this.ride.v) > 28 ? 'Space  ·  Brake before exiting'
-      : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'E  ·  Exit vehicle';
+    if (this.ride) return Math.abs(this.ride.v) > 28 ? 'W / S  ·  Change lanes / Space  ·  Brake to exit'
+      : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'W / S  ·  Change lanes / E or X  ·  Exit';
     const pickup = this.pickup;
     if (pickup) {
       if (pickup.weapon === undefined) return 'E  ·  Pick up cash';
@@ -237,8 +247,8 @@ export class Sandbox {
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
     const business = this.business;
     if (business) {
-      const parked = this.garageRide;
-      return `E  ·  ${business.name}${parked ? ' / X  ·  Enter ' + CARS[parked.kind].label : ''}`;
+      const parked = this.garageRideLabel;
+      return `E  ·  ${business.name}${parked ? ' / X  ·  Enter ' + parked : ''}`;
     }
     const ladder = nearbyLadder(this.body);
     if (ladder) {
@@ -246,7 +256,7 @@ export class Sandbox {
       return `${keys}  ·  Climb fire escape`;
     }
     const ride = this.availableRide;
-    if (ride) return `E  ·  ${ride.taken ? 'Enter' : 'Steal'} ${CARS[ride.kind].label}`;
+    if (ride) return `E  ·  ${ride.taken ? 'Enter' : ride.traffic ? 'Carjack' : 'Steal'} ${CARS[ride.kind].label}`;
     return '';
   }
 
@@ -299,7 +309,8 @@ export class Sandbox {
 
   private onFoot(dt: number, input: SandboxInput) {
     const pickup = input.use && this.pickup;
-    const car = !pickup && !closeDoor(this.body) && (input.use ? this.availableRide : input.exit && this.garageRide);
+    const car = (input.use || input.exit) && !this.pickup && !closeDoor(this.body)
+      && (input.use ? this.availableRide : this.garageRide);
     if (car) {
       this.ride = car;
       this.armory.impact = null;
@@ -370,6 +381,7 @@ export class Sandbox {
       car.v = 0;
       this.body = bodyAt(clamp(car.x - car.dir * 34, 22, DISTRICT_WIDTH - 22));
       this.body.dir = car.dir;
+      this.lastExitedRide = car;
       this.ride = null;
       this.sound('door');
     }

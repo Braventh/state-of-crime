@@ -33,12 +33,13 @@ export const PLATFORMS = [
   { x: 9950, width: 204, y: ROAD - 52 },
 ];
 export const CARS = {
-  compact: { label: 'Kite Compact', speed: 286, accel: 340, grip: 590, health: 96, width: 61, height: 24, color: '#ef8a62', coast: 47 },
-  coupe: { label: 'Sable Coupe', speed: 383, accel: 430, grip: 640, health: 74, width: 72, height: 22, color: '#e35883', coast: 53 },
-  van: { label: 'Bayline Van', speed: 248, accel: 245, grip: 397, health: 137, width: 75, height: 33, color: '#8fccc0', coast: 38 },
+  compact: { label: 'Kite Compact', handling: 'Balanced all-rounder', speed: 286, accel: 340, grip: 590, health: 96, width: 61, height: 24, color: '#ef8a62', coast: 120, laneSpeed: 6 },
+  coupe: { label: 'Sable Coupe', handling: 'Fast and nimble, light shell', speed: 383, accel: 430, grip: 640, health: 74, width: 72, height: 22, color: '#e35883', coast: 145, laneSpeed: 8 },
+  van: { label: 'Bayline Van', handling: 'Tough shell, slower turns', speed: 248, accel: 245, grip: 397, health: 137, width: 75, height: 33, color: '#8fccc0', coast: 85, laneSpeed: 4.2 },
 };
 export type CarKind = keyof typeof CARS;
 export const UPGRADES = { engine: 420, armor: 340, coupe: 680, van: 520 };
+export const GARAGE_TUNE = { speed: .22, accel: .16, damage: .32 };
 export const TUNE = {
   maxHealth: 100, run: 211, walk: 145, jump: 343, gravity: 930, coyote: .10, jumpBuffer: .12,
   crime: { theft: 1, exchange: 2 },

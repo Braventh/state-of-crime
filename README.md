@@ -26,7 +26,7 @@ Host the generated `dist/` directory on any static HTTP host. It uses relative a
 | **Shift** | Sprint | — |
 | **Space** | Jump | Brake |
 | **W / S** or **↑ / ↓** | **W / ↑** also jumps | Switch traffic lanes |
-| **E** | Talk, interact, enter vehicle | Exit vehicle or use nearby contact/refuge |
+| **E** | Talk, interact, enter vehicle | Exit at low speed or use nearby contact/refuge |
 | **F**, **1–3** | Attack; select a tool | — |
 | **Esc** or **P** | Pause | Pause |
 

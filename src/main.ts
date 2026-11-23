@@ -1,7 +1,7 @@
 import './style.css';
 import { render } from './art.ts';
 import { AudioBed } from './audio.ts';
-import { CARS, H, JOBS, LIMIT, TOOLS, TUNE, UPGRADES, W, clamp, regionAt, type CarKind } from './config.ts';
+import { CARS, GARAGE_TUNE, H, JOBS, LIMIT, TOOLS, TUNE, UPGRADES, W, clamp, regionAt, type CarKind } from './config.ts';
 import { Game, type Purchase } from './game.ts';
 import { clearEdges, resetInput, startInput, tap } from './input.ts';
 import { fresh, loadSave, loadSettings, storeSettings, type Progress } from './save.ts';
@@ -49,6 +49,9 @@ const controls = `
 const btn = (id: string, text: string, primary = false, disabled = false) =>
   '<button type="button" data-action="' + id + '" class="' + (primary ? 'primary' : 'secondary') + '"' + (disabled ? ' disabled' : '') + '>' + text + '</button>';
 const carKeys = Object.keys(CARS) as CarKind[];
+const percent = (ratio: number) => Math.round(ratio * 100) + '%';
+const garageItem = (title: string, detail: string, badge: string) =>
+  '<span>' + title + '<small>' + detail + '</small></span><span>' + badge + '</span>';
 function start(progress: Progress, shouldSave = false) {
   game = new Game(progress, name => audio.cue(name));
   if (shouldSave) game.checkpoint();
@@ -82,10 +85,20 @@ function goto(s: typeof scene) {
     <label class="toggle">Reduced motion <input id="reduced" type="checkbox" ${settings.reduced ? 'checked' : ''}></label>`);
   if (s === 'garage' && game) {
     const p = game.progress;
-    const products = (['engine', 'armor'] as const).map(k => btn(k, (k === 'engine' ? 'Engine tune' : 'Reinforced shell') + ' <span>' + (p[k] ? 'INSTALLED' : '$' + UPGRADES[k]) + '</span>', false, p[k] || p.cash < UPGRADES[k]));
-    const fleet = carKeys.map(k => btn(k, CARS[k].label + ' <span>' + (k === p.selected ? 'SELECTED' : p.owned.includes(k) ? 'DEPLOY' : k !== 'compact' ? '$' + UPGRADES[k] : 'OWNED') + '</span>', false, k === p.selected || (k !== 'compact' && !p.owned.includes(k) && p.cash < UPGRADES[k])));
-    overlay.innerHTML = panel('GARAGE / CROWNWATER', 'Sidecar.', '$' + p.cash.toLocaleString('en-US') + ' cash · Tunings apply to garage vehicles.',
-      btn('service', 'Restock & stage ride', true) + btn('close', 'Back to street'), '<div class="garage-list">' + [...products, ...fleet].join('') + '</div>');
+    const upgrades = [
+      ['engine', 'Engine tune', '+' + percent(GARAGE_TUNE.speed) + ' top speed · +' + percent(GARAGE_TUNE.accel) + ' acceleration'],
+      ['armor', 'Reinforced shell', '−' + percent(GARAGE_TUNE.damage) + ' damage taken'],
+    ] as const;
+    const products = upgrades.map(([key, title, detail]) =>
+      btn(key, garageItem(title, detail, p[key] ? 'INSTALLED' : '$' + UPGRADES[key]), false, p[key] || p.cash < UPGRADES[key]));
+    const fleet = carKeys.map(key => {
+      const owned = p.owned.includes(key), selected = key === p.selected;
+      const price = key === 'compact' ? 0 : UPGRADES[key];
+      return btn(key, garageItem(CARS[key].label, CARS[key].handling, selected ? 'SELECTED' : owned ? 'STAGE' : '$' + price),
+        false, selected || (!owned && p.cash < price));
+    });
+    overlay.innerHTML = panel('GARAGE / CROWNWATER', 'Sidecar.', '$' + p.cash.toLocaleString('en-US') + ' cash · Upgrades apply to owned rides.',
+      btn('service', 'Restock & stage ' + CARS[p.selected].label, true) + btn('close', 'Back to street'), '<div class="garage-list">' + [...products, ...fleet].join('') + '</div>');
   }
   if (s === 'over') overlay.innerHTML = panel('TRANSMISSION LOST', 'Busted.', 'The last safe checkpoint is still on tape.',
     btn('retry', 'Reload checkpoint ↗', true) + btn('title', 'Main menu'));
@@ -156,7 +169,8 @@ function updateHud(g: Game) {
   $('map-target').style.left = clamp(goal.x / LIMIT * 100, 0, 100) + '%';
   $('map-target').hidden = !g.current;
   const prompt = g.prompt();
-  $('interaction').textContent = prompt;
+  $('interaction').textContent = prompt?.label ?? '';
+  $('interaction').dataset.key = prompt?.key ?? '';
   $('interaction').hidden = !prompt;
   if (g.notice) {
     $('notice').dataset.kind = g.notice.kind;

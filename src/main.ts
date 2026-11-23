@@ -13,19 +13,23 @@ app.innerHTML = `
     <div class="mast-right"><span class="live"></span> PALMETTO STATE <span class="muted">/</span> VOL. 01</div>
   </header>
   <div class="frame">
-    <canvas aria-label="Side-scrolling streets of Palmetto State" width="${W}" height="${H}"></canvas>
-    <div class="grain"></div>
-    <section class="hud" hidden aria-label="Game status">
-      <div class="top-left"><div class="caps" id="district"></div><div id="area"></div><div id="vitals"></div></div>
-      <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div><div id="refuge"></div></div>
+    <div class="stage">
+      <canvas aria-label="Side-scrolling streets of Palmetto State" width="${W}" height="${H}"></canvas>
+      <div class="grain"></div>
+      <section class="hud" hidden aria-label="Game status">
+        <div class="top-left"><div class="caps" id="district"></div><div id="area"></div><div id="vitals"></div></div>
+        <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div><div id="refuge"></div></div>
+        <div class="notice" id="notice" role="status"></div>
+        <div class="hidden-state" id="hide" hidden><div class="caps">RADIO SILENCE</div><strong>Below the signal.</strong><div id="hide-detail"></div></div>
+        <button class="pause-button" type="button" id="pause" aria-label="Pause">Ⅱ</button>
+      </section>
+      <section class="overlay" aria-label="Game menu"></section>
+    </div>
+    <section class="hud-dock" hidden aria-label="Current objective">
       <div class="job"><div class="caps" id="jobname"></div><div id="objective"></div><div id="distance"></div><div id="goal-hint" hidden></div></div>
       <div class="tracker" aria-label="District map"><div class="roadline"><i id="map-target"></i><i id="map-player"></i></div><div class="maplabels"><span>CROWN</span><span>KEYS</span><span>YARD</span></div></div>
       <div class="interaction" id="interaction"></div>
-      <div class="notice" id="notice" role="status"></div>
-      <div class="hidden-state" id="hide" hidden><div class="caps">RADIO SILENCE</div><strong>Below the signal.</strong><div id="hide-detail"></div></div>
-      <button class="pause-button" type="button" id="pause" aria-label="Pause">Ⅱ</button>
     </section>
-    <section class="overlay" aria-label="Game menu"></section>
   </div>
   <footer><span><b>01</b> &nbsp; THE PALMETTO TAPES <i></i> A COASTAL SANDBOX</span><span>KEYBOARD REQUIRED TO PLAY <i></i> <kbd>ESC</kbd> MENU</span></footer>
 `;
@@ -34,6 +38,7 @@ const canvas = app.querySelector('canvas')!;
 const overlay = app.querySelector<HTMLElement>('.overlay')!;
 const ctx = canvas.getContext('2d', { alpha: false })!;
 const hud = app.querySelector<HTMLElement>('.hud')!;
+const dock = app.querySelector<HTMLElement>('.hud-dock')!;
 const settings = loadSettings();
 const audio = new AudioBed(settings);
 let game: Game | null = null;
@@ -60,7 +65,7 @@ function goto(s: typeof scene) {
   needsRender = true;
   resetInput();
   document.body.classList.toggle('reduced', settings.reduced);
-  hud.hidden = !game || scene === 'title';
+  dock.hidden = hud.hidden = !game || scene === 'title';
   overlay.hidden = scene === 'play';
   overlay.className = 'overlay ' + scene;
   if (s === 'play') { (document.activeElement as HTMLElement | null)?.blur(); return; }

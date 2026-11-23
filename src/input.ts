@@ -8,9 +8,10 @@ export const tap = (...codes: string[]) => codes.some(code => edges.has(code));
 export const clearEdges = () => edges.clear();
 export function resetInput() { keys.clear(); edges.clear(); }
 
-export function startInput(engaged: () => boolean) {
+export function startInput(engaged: () => boolean, nativeControl?: EventTarget) {
   window.addEventListener('keydown', e => {
     if (!gameKeys.has(e.code)) return;
+    if (e.code !== 'Escape' && e.target === nativeControl) return;
     if (engaged() && !(e.target instanceof HTMLInputElement)) e.preventDefault();
     if (!e.repeat && !(e.target instanceof HTMLInputElement)) edges.add(e.code);
     keys.add(e.code);

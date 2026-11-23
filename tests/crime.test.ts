@@ -51,6 +51,38 @@ test('A shot cannot expand police sight range to make its own knockout observed'
   assert.equal(game.police.evidence, null);
 });
 
+test('A storefront robbery and pistol fight escalate by player action, not by gunfire plus hits', () => {
+  const game = new Sandbox();
+  const shop = businesses[0];
+  game.body = bodyAt(shop.x);
+  const clerk = game.actors.find(actor => actor.id === shop.id)!;
+  const officer = actorAt('officer', shop.x + 80, 0, 'officer');
+  game.actors = [clerk];
+  game.police.officers = [officer];
+  game.armory.supply(2);
+  game.step(1 / 60, { ...neutral, rob: true });
+  assert.equal(game.cash, 140 + shop.till);
+  assert.equal(game.police.level, 2);
+  game.actors = [];
+
+  const stars = [];
+  for (let i = 0; i < 10; i++) {
+    if (!game.armory.ammo.rounds) {
+      game.step(1 / 60, { ...neutral, reload: true });
+      game.step(.9, neutral);
+    }
+    if (!officer.hp) officer.hp = 100;
+    officer.x = shop.x + 80;
+    game.police.officers = [officer];
+    const rounds = game.armory.ammo.rounds;
+    assert.equal(game.police.watched(game.suspect), true);
+    game.step(.34, { ...neutral, fire: true });
+    assert.equal(game.armory.ammo.rounds, rounds - 1);
+    stars.push(game.police.level);
+  }
+  assert.deepEqual(stars, [2, 3, 3, 3, 3, 4, 4, 4, 4, 5]);
+});
+
 test('Shop robbery pays once, reports witnesses, and panics the clerk without any mission', () => {
   const game = new Sandbox();
   const shop = businesses[0];

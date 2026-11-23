@@ -1,6 +1,6 @@
 import { actorAt, clearShot, type Actor } from './combat.ts';
 import { clamp, toward, W } from './config.ts';
-import { severity, type Crime } from './crime.ts';
+import { severity, type Crime, type CrimeKind } from './crime.ts';
 import { DISTRICT_WIDTH, STREET } from './district.ts';
 import { makeRide, type Ride } from './vehicles.ts';
 
@@ -13,6 +13,9 @@ export const responses = [
   { name: 'Maximum response', feet: 5, wheels: 3, range: 289, search: 15, speed: 265 },
 ];
 const thresholds = [10, 34, 65, 108, 153];
+const sustainedSeverity: Partial<Record<CrimeKind, number>> = {
+  civilianDown: 18, officerAttacked: 13, officerDown: 21,
+};
 const searchRadius = 150;
 const searchRate = (s: Suspect) => s.covered ? 1.32 : 1;
 export interface Identity { outfit: number; hair: number; ride: string; paint: string }
@@ -86,16 +89,17 @@ export class Police {
       return this.line(a, s, Math.max(this.level >= 4 ? 65 : 33, range));
     });
   }
-  report(crime: Crime, s: Suspect, observed = this.watched(s)) {
-    const noise = crime.kind === 'gunfire' || crime.kind === 'damage' || crime.kind === 'wreck';
+  report(crime: Crime, s: Suspect, observed = this.watched(s), gunfire = crime.kind === 'gunfire') {
+    const noise = gunfire || crime.kind === 'damage' || crime.kind === 'wreck';
     const rapid = noise && this.clock - this.reportedNoiseAt < .32;
     if (noise && !rapid) this.reportedNoiseAt = this.clock;
     const factor = rapid ? .31 : observed ? 1.25 : crime.witnesses ? 1 : noise ? .72 : .24;
-    const serious = crime.kind === 'gunfire' || crime.kind === 'officerAttacked' || crime.kind === 'officerDown'
+    const serious = gunfire || crime.kind === 'officerAttacked' || crime.kind === 'officerDown'
       || crime.kind === 'civilianDown';
     const limit = this.level === 5 || (observed && serious) ? 200 : Math.max(this.points, thresholds[4] - 1);
-    const escalation = this.level < 2 ? 1 : .52;
-    this.points = Math.min(limit, this.points + Math.ceil(severity[crime.kind] * factor * escalation));
+    const activePursuit = this.level >= 2;
+    const weight = (activePursuit && sustainedSeverity[crime.kind]) || severity[crime.kind];
+    this.points = Math.min(limit, this.points + Math.ceil(weight * factor * (activePursuit ? .52 : 1)));
     if (observed) this.remember(s);
     else if (!rapid && (crime.witnesses || noise || crime.kind === 'theft' || crime.kind === 'carjacking')) {
       this.sinceSeen = Math.min(this.sinceSeen, 2);

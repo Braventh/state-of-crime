@@ -33,15 +33,19 @@ These are short observations, capped near 60 Hz on this environment. They are no
 
 ## Wanted tuning
 
-The thresholds and escape mechanics are unchanged. Reports build heat more slowly after two stars, and only serious offenses seen by police can take the response to five. These controlled counts start at zero and isolate police reports (gunfire spaced 0.34 s apart); a gameplay action can generate several reports.
+The star thresholds and escape rules are unchanged. A shot now adds heat once: a hit keeps its victim offense and can still be heard as gunfire. Officer injuries and knockouts build heat more slowly once active pursuit begins. Observation is checked before a shot can change wanted level or knock out its witness. Only serious offenses seen by police can take a pursuit from four to five stars.
 
-| Scenario | Before | After |
-| --- | ---: | ---: |
-| Observed storefront robbery, then gunfire | 6 | 12 |
-| Observed gunfire alone | 8 | 16 |
-| Observed officer assaults | 3 | 5 |
-| Observed officer knockouts | 2 | 3 |
-| Witness reports only: storefront robbery, then gunfire | 8 | No five stars after 31 reports |
+In fresh production Chrome runs on the same route, the player robbed Velvet Loom once, collected a pistol and fired single shots in police sight near Bluehour Arcade. These are criminal actions (robbery or shots actually fired), not police reports; movement and reloads are excluded.
+
+| First reached | Before (`9150c48`, port 4180) | After (port 4181) |
+| --- | --- | --- |
+| 1 star | Skipped | Skipped |
+| 2 stars | 1 action (robbery) | 1 action (robbery) |
+| 3 stars | 2 actions (robbery + 1 shot) | 4 actions (robbery + 3 shots) |
+| 4 stars | 3 actions (robbery + 2 shots) | 8 actions (robbery + 7 shots) |
+| 5 stars | 4 actions (robbery + 3 shots) | 12 actions (robbery + 11 shots) |
+
+The follow-up automated suite passed all 73 tests, including a player-action escalation scenario, the out-of-range knockout regression, and five-star escape. New Game, Cancel and Confirm were also rechecked on port 4181.
 
 ## Gameplay evidence
 

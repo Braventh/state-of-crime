@@ -14,6 +14,7 @@ export type Purchase = keyof typeof UPGRADES | 'compact';
 const carAt = (x: number, kind: CarKind, owned = false, lane = 0): Vehicle =>
   ({ x, kind, owned, v: 0, lane, yLane: lane, dir: 1, hp: CARS[kind].health });
 const STARTER_KITE_X = 720;
+const LANE_SHIFT_SPEED = 5.4;
 const spots: [number, CarKind, number][] = [
   [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
   [4300, 'van', 1], [5110, 'compact', 1], [6080, 'coupe', 1], [7150, 'compact', 1],
@@ -205,7 +206,7 @@ export class Game {
     const top = kind.speed * (tuned ? 1.22 : 1);
     const up = tap('KeyW', 'ArrowUp'), down = tap('KeyS', 'ArrowDown');
     if (up || down) c.lane = clamp(c.lane + Number(down) - Number(up), -1, 1);
-    c.yLane = toward(c.yLane, c.lane, dt * 5.4);
+    c.yLane = toward(c.yLane, c.lane, dt * LANE_SHIFT_SPEED);
     c.v = toward(c.v, brake ? 0 : direction * top, dt * (brake ? kind.grip
       : !direction ? kind.coast : Math.sign(c.v) === -direction ? kind.grip : kind.accel * (tuned ? 1.16 : 1)));
     if (Math.abs(c.v) > 9) c.dir = Math.sign(c.v);
@@ -222,7 +223,7 @@ export class Game {
         this.hurt(10, -c.dir);
         if (Math.abs(c.v) > 135 && this.intake <= 0 && !this.heat && this.index !== 3) this.reportCrime(TUNE.crime.theft);
       }
-      t.lane = t.dir > 0 ? 1 : -1;
+      t.lane = c.lane === 0 ? -t.dir : 0;
       c.v = Math.sign(c.v) * Math.min(Math.abs(c.v), 145);
     }
     if ((brake || c.hp < 25 || Math.abs(c.v) > top * .7) && Math.random() < dt * 22)
@@ -496,6 +497,7 @@ export class Game {
       else { this.walk(dt); this.fight(); }
     }
     for (const t of this.traffic) {
+      t.yLane = toward(t.yLane, t.lane, dt * LANE_SHIFT_SPEED);
       t.x += t.v * dt;
       if (t.x > LIMIT + 95) t.x = -95;
       if (t.x < -95) t.x = LIMIT + 95;

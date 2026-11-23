@@ -162,7 +162,8 @@ export class Sandbox {
       const car = this.garageRide;
       if (!car) return 'Stop a vehicle you have driven next to the shop';
       if (car.color === item.value) return 'Already painted this color';
-      if (this.police.spotted || this.police.watched(this.suspect) || this.police.watched({ ...this.suspect, x: car.x }))
+      if (this.police.level &&
+        (this.police.spotted || this.police.watched(this.suspect) || this.police.watched({ ...this.suspect, x: car.x })))
         return 'Police are watching · lose sight first';
     }
     if ((item.kind === 'outfit' || item.kind === 'hair') && this.police.level &&

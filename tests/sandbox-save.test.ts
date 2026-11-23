@@ -96,14 +96,17 @@ test('Prism paints and saves a stopped vehicle parked beside the player, but not
   assert.equal(game.garageRide, parked);
   assert.match(game.prompt, /X  ·  Enter/);
 
-  game.police.officers[0].x = parked.x + 150;
-  game.police.officers.length = 1;
+  game.police.points = 10;
+  const officer = game.police.officers[1];
+  officer.x = parked.x + 150;
   assert.equal(game.police.watched(game.suspect), false);
   assert.match(game.purchaseIssue(paint), /watching/);
   assert.match(game.buy(paint), /watching/);
   assert.equal(game.cash, 140);
 
-  game.police.officers = [];
+  game.police.points = 0;
+  officer.x = 2593;
+  assert.equal(game.police.watched(game.suspect), true);
   assert.equal(game.buy(paint), '');
   assert.equal(game.cash, 140 - paint.price);
   assert.match(game.purchaseIssue(paint), /Already painted/);

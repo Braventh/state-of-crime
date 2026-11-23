@@ -9,7 +9,7 @@ import { loadSettings, storeSettings } from './save.ts';
 
 const app = document.querySelector<HTMLElement>('#app')!;
 app.innerHTML = `
-  <header class="mast"><span>STATE OF CRIME</span><small>CROWNWATER / FREE ROAM</small><button id="pause">Pause <kbd>Esc</kbd></button></header>
+  <header class="mast"><span>STATE OF CRIME</span><div class="radio"><span id="stars" aria-label="Wanted level"></span><small id="pursuit"></small></div><button id="pause">Pause <kbd>Esc</kbd></button></header>
   <section class="stage" aria-label="Crownwater">
     <canvas width="${W}" height="${H}" aria-label="Side-scrolling Crownwater sandbox"></canvas>
     <div id="menu" class="shade">
@@ -106,7 +106,8 @@ function frame(now: number) {
     }
   }
   clearEdges();
-  audio.step(Math.abs(game.ride?.v ?? 0), 0, Boolean(game.ride), running);
+  const police = game.police;
+  audio.step(Math.abs(game.ride?.v ?? 0), police.spotted ? police.level : Math.max(0, police.level - 1), Boolean(game.ride), running);
   renderSandbox(context, game, started ? game.time : now / 1000, settings.reduced);
   label('block', game.block.name);
   label('prompt', started ? game.noticeTime && game.notice ? game.notice : game.prompt : 'No jobs. No fixed route.');
@@ -114,6 +115,8 @@ function frame(now: number) {
   label('equipment', game.ride ? `${Math.round(Math.abs(game.ride.v) / 3.9)} mph · ${Math.ceil(game.ride.hp)} integrity`
     : gun.mag ? `${gun.name} · ${loading ? 'Reloading' : ammo.rounds + ' / ' + ammo.reserve}` : gun.name);
   label('status', `HP ${game.hp} · $${game.cash}`);
+  label('stars', '★'.repeat(police.level) + '☆'.repeat(5 - police.level));
+  label('pursuit', police.level ? police.mode + ' · ' + police.response.name : 'Crownwater / Free roam');
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

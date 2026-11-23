@@ -20,8 +20,10 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       form(context, '#272333', x - half - 3, y + 6, x - half, y - 10, x + half, y - 10, x + half + 3, y + 6);
       lettering(context, shop.name.toUpperCase(), x, y + 1, shop.color, 10);
     }
-    for (const actor of game.actors) if (visible(actor.x) && actor.down < 3) {
-      portrait(context, actor);
+    for (const actor of [...game.actors, ...game.police.officers]) if (visible(actor.x) && actor.down < 3) {
+      portrait(context, actor.role === 'officer' ? { ...actor, hair: 4, weapon: actor.pose ? actor.weapon : 0 } : { ...actor, weapon: actor.hostile ? actor.weapon : 0 });
+      if (actor.role === 'officer' && actor.hp)
+        lettering(context, 'PATROL', actor.x, actor.y - 70, '#9cc1ed', 8);
       if (actor.faction !== undefined && actor.hostile && actor.hp)
         lettering(context, factions[actor.faction].name.toUpperCase(), actor.x, actor.y - 70, '#f2a48f', 8);
     }
@@ -29,6 +31,13 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       if (!visible(ride.x) || Math.round(ride.depth) !== lane) continue;
       vehicle(context, ride.x, rideY(ride), ride.kind, ride.dir, ride.v, ride.hp > 0 ? ride.color : '#524b57',
         reduced ? 0 : time, false, false, ride === game.ride);
+    }
+    for (const ride of game.police.road) if (visible(ride.x))
+      vehicle(context, ride.x, rideY(ride), ride.kind, ride.dir, ride.v, ride.color, reduced ? 0 : time, true, ride.kind === 'van');
+    for (const warning of game.police.tells) {
+      if (!visible(warning.ride.x)) continue;
+      lettering(context, warning.block ? 'ROADBLOCK · CHANGE LANES' : 'RAM INCOMING', warning.ride.x,
+        rideY(warning.ride) - 49, '#ffc7a3', 10);
     }
     for (const drop of game.drops) {
       if (!visible(drop.x)) continue;

@@ -2,6 +2,7 @@ import { CARS, clamp, W } from './config.ts';
 import { Armory, clearShot, weapons, type AttackInput, type Drop } from './combat.ts';
 import { businesses, type Crime, type CrimeKind } from './crime.ts';
 import { blockAt, DISTRICT_WIDTH, ladders, SPAWN, STREET } from './district.ts';
+import { Police, type Suspect } from './police.ts';
 import { advanceCrowd, gangLoot, streetLife } from './street-life.ts';
 import { bodyAt, closeDoor, traverse, type MotionInput } from './traversal.ts';
 import { commute, fleet, steer, type DriveInput, type Ride } from './vehicles.ts';
@@ -21,6 +22,7 @@ export class Sandbox {
   notice = '';
   noticeTime = 0;
   crime: Crime | null = null;
+  police = new Police();
   rides = fleet();
   ride: Ride | null = null;
   armory = new Armory();
@@ -37,6 +39,10 @@ export class Sandbox {
   constructor(sound: (name: string) => void = () => {}) { this.sound = sound; }
 
   get block() { return blockAt(this.body.x); }
+  get suspect(): Suspect {
+    return { x: this.body.x, y: this.body.y, covered: this.body.covered, camera: this.camera, ride: this.ride,
+      identity: { outfit: this.outfit, hair: this.hair, ride: this.ride?.id ?? '', paint: this.ride?.color ?? '' } };
+  }
   get pickup() {
     return !this.ride && this.drops.find(d => d.covered === this.body.covered && Math.abs(d.y - this.body.y) < 25 && Math.abs(d.x - this.body.x) < 29);
   }
@@ -70,6 +76,9 @@ export class Sandbox {
     const seen = this.actors.filter(actor => actor.hp > 0 && actor.faction === undefined && actor.covered === covered
       && Math.abs(actor.x - x) < 220 && clearShot(x, y - 30, actor.x, actor.y - 30));
     this.crime = { kind, x, y, covered, witnesses: seen.length };
+    const before = this.police.level;
+    this.police.report(this.crime, this.suspect);
+    if (this.police.level > before) this.sound('radio');
     for (const actor of seen) {
       actor.panic = 4.5;
       actor.dir = actor.x < x ? -1 : 1;
@@ -115,6 +124,19 @@ export class Sandbox {
     for (const ride of this.rides) commute(ride, dt);
     for (const actor of this.actors) if (actor.role !== 'officer') advanceCrowd(actor, this.body, dt, this.sound,
       damage => this.ride ? this.ride.hp = Math.max(0, this.ride.hp - damage * .6) : this.hurt(damage));
+    this.police.step(dt, this.suspect, this.sound, damage => this.hurt(damage));
+    if (this.police.level > 1) for (const actor of this.actors) {
+      if (actor.faction === undefined || !actor.hostile || !actor.hp || actor.pose || actor.ready) continue;
+      const officer = this.police.officers.find(unit => unit.hp > 0 && Math.abs(unit.x - actor.x) < (actor.weapon > 1 ? 77 : 24));
+      if (!officer) continue;
+      actor.pose = .23;
+      actor.ready = 1.3;
+      actor.dir = Math.sign(officer.x - actor.x) || actor.dir;
+      officer.hp = Math.max(0, officer.hp - (actor.weapon > 1 ? 16 : 8));
+      officer.hit = .24;
+      if (!officer.hp) officer.down = .01;
+      if (Math.abs(officer.x - this.body.x) < 270) this.sound(actor.weapon > 1 ? 'shot' : 'hit');
+    }
     const camera = clamp(this.body.x - W * .43, 0, DISTRICT_WIDTH - W);
     this.camera += (camera - this.camera) * (1 - Math.exp(-7 * dt));
   }
@@ -150,7 +172,7 @@ export class Sandbox {
     }
     const cue = traverse(this.body, { ...input, vertical: input.aim ? 0 : input.vertical, use: input.use && !pickup }, dt);
     if (cue) this.sound(cue);
-    const attack = this.armory.step(dt, input, this.body, this.actors, this.sound);
+    const attack = this.armory.step(dt, input, this.body, [...this.actors, ...this.police.officers], this.sound);
     const enemy = attack?.target;
     if (enemy) {
       enemy.dir = this.body.dir;
@@ -167,7 +189,7 @@ export class Sandbox {
 
   private drive(dt: number, input: SandboxInput) {
     const car = this.ride!;
-    const impact = steer(car, this.rides, input, dt);
+    const impact = steer(car, [...this.rides, ...this.police.road], input, dt);
     this.body.x = car.x;
     this.body.dir = car.dir;
     if (impact) {

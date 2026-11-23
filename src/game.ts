@@ -105,6 +105,8 @@ export class Game {
     this.storageOK = storeSave(this.progress);
   }
 
+  retry() { return new Game(this.progress, this.sound); }
+
   reportCrime(level: number) {
     const prior = this.heat;
     this.heat = Math.min(4, Math.max(level, prior + 1));

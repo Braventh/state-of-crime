@@ -27,7 +27,7 @@ app.innerHTML = `
     </section>
     <section class="overlay" aria-label="Game menu"></section>
   </div>
-  <footer><span><b>01</b> &nbsp; THE PALMETTO TAPES <i></i> A COASTAL SANDBOX</span><span>KEYBOARD RECOMMENDED <i></i> <kbd>ESC</kbd> MENU</span></footer>
+  <footer><span><b>01</b> &nbsp; THE PALMETTO TAPES <i></i> A COASTAL SANDBOX</span><span>KEYBOARD REQUIRED TO PLAY <i></i> <kbd>ESC</kbd> MENU</span></footer>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = app.querySelector('canvas')!;
@@ -39,6 +39,7 @@ const audio = new AudioBed(settings);
 let game: Game | null = null;
 let scene: 'title' | 'play' | 'pause' | 'settings' | 'garage' | 'over' = 'title';
 let settingsFrom: 'title' | 'pause' = 'title';
+let needsRender = true;
 const directionKeys = '<kbd>A</kbd> <kbd>D</kbd>';
 const interactKey = '<kbd>E</kbd>';
 const pauseKey = '<kbd>Esc</kbd>';
@@ -59,6 +60,7 @@ function start(progress: Progress, shouldSave = false) {
 }
 function goto(s: typeof scene) {
   scene = s;
+  needsRender = true;
   resetInput();
   document.body.classList.toggle('reduced', settings.reduced);
   hud.hidden = !game || scene === 'title';
@@ -119,7 +121,7 @@ overlay.addEventListener('input', e => {
     $('volume-label').textContent = input.value + '%';
   }
   if (input.id === 'mute') settings.mute = input.checked;
-  if (input.id === 'reduced') settings.reduced = input.checked;
+  if (input.id === 'reduced') { settings.reduced = input.checked; needsRender = true; }
   updateSettings();
 });
 overlay.addEventListener('click', e => {
@@ -145,6 +147,9 @@ overlay.addEventListener('click', e => {
 $('pause').addEventListener('click', () => goto('pause'));
 startInput(() => scene === 'play');
 window.addEventListener('blur', () => { if (scene === 'play') goto('pause'); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) audio.step(0, 0, false, false);
+});
 
 function updateHud(g: Game) {
   const area = regionAt(g.x);
@@ -174,9 +179,11 @@ function updateHud(g: Game) {
   $('interaction').hidden = !prompt;
   if (g.notice) {
     $('notice').dataset.kind = g.notice.kind;
-    const heading = document.createElement('strong'), detail = document.createElement('span');
-    heading.textContent = g.notice.title; detail.textContent = g.notice.detail;
-    if ($('notice').textContent !== g.notice.title + g.notice.detail) $('notice').replaceChildren(heading, detail);
+    if ($('notice').textContent !== g.notice.title + g.notice.detail) {
+      const heading = document.createElement('strong'), detail = document.createElement('span');
+      heading.textContent = g.notice.title; detail.textContent = g.notice.detail;
+      $('notice').replaceChildren(heading, detail);
+    }
   }
   $('notice').hidden = !g.notice;
   $('hide').hidden = !g.hide;
@@ -197,9 +204,12 @@ function loop(now: number) {
     if (game.garage) goto('garage');
     if (game.lost) goto('over');
   }
-  if (game && now >= hudAt) { updateHud(game); hudAt = now + 70; }
-  audio.step(Math.abs(game?.car?.v ?? 0), game?.heat ?? 0, Boolean(game?.car), scene === 'play' || scene === 'title');
-  render(ctx, now / 1000, game, settings.reduced);
+  if (game && (needsRender || (scene === 'play' && now >= hudAt))) { updateHud(game); hudAt = now + 70; }
+  audio.step(Math.abs(game?.car?.v ?? 0), game?.heat ?? 0, Boolean(game?.car), !document.hidden && (scene === 'play' || scene === 'title'));
+  if (needsRender || scene === 'play' || (scene === 'title' && !settings.reduced)) {
+    render(ctx, now / 1000, game, settings.reduced);
+    needsRender = false;
+  }
   clearEdges();
   requestAnimationFrame(loop);
 }

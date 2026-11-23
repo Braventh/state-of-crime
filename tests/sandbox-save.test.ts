@@ -154,11 +154,11 @@ test('A wanted knockout retries from the nearest cover without losing progress o
   game.police.evidence = game.suspect.identity;
   game.police.last = { x: game.body.x, y: game.body.y, age: 0, identity: game.suspect.identity };
   const original = game.snapshot();
-  const retry = recoverCheckpoint(original, true);
+  const retry = recoverCheckpoint(original, original);
   assert.equal(inside(retry.x)?.name, 'Bluehour Arcade');
   assert.deepEqual(retry, { ...original, x: 705, hp: 70, covered: true, driving: null });
-  assert.deepEqual(recoverCheckpoint(retry, true), retry);
-  assert.deepEqual(recoverCheckpoint(original, false), { ...original, hp: 70 });
+  assert.deepEqual(recoverCheckpoint(retry, retry), retry);
+  assert.deepEqual(recoverCheckpoint(original), { ...original, hp: 70 });
   const saved = decodeSandbox(JSON.stringify(retry));
   assert.ok(saved);
   const restored = new Sandbox();
@@ -172,7 +172,7 @@ test('A wanted knockout retries from the nearest cover without losing progress o
   assert.equal(restored.rides[0].color, game.ride.color);
 });
 
-test('A crime committed on the knockout frame retains its wanted heat when retrying or reloading', () => {
+test('A crime committed on the knockout frame resumes pursuit when retrying or reloading', () => {
   const game = new Sandbox();
   const gang = game.actors.find(actor => actor.faction === 0)!;
   gang.hostile = true;
@@ -182,12 +182,17 @@ test('A crime committed on the knockout frame retains its wanted heat when retry
   game.armory.supply(2);
   const checkpoint = game.snapshot();
   assert.equal(checkpoint.heat, 0);
+  assert.equal(checkpoint.lead, null);
 
+  game.police.officers[0].x = game.body.x - 45;
   game.step(1 / 60, { ...neutral, fire: true });
   assert.equal(game.hp, 0);
   assert.ok(game.police.level > 0);
+  const pursuit = game.snapshot();
+  assert.ok(pursuit.lead !== null);
+  assert.ok(pursuit.evidence);
 
-  const retry = recoverCheckpoint(checkpoint, game.police.level > 0, game.police.points);
+  const retry = recoverCheckpoint(checkpoint, pursuit);
   const reloaded = decodeSandbox(JSON.stringify(retry));
   assert.ok(reloaded);
   for (const save of [retry, reloaded]) {
@@ -195,6 +200,15 @@ test('A crime committed on the knockout frame retains its wanted heat when retry
     restored.restore(save);
     assert.equal(restored.body.covered, true);
     assert.equal(restored.police.level, game.police.level);
+    assert.deepEqual(restored.police.evidence, pursuit.evidence);
+    assert.equal(restored.police.last?.x, pursuit.lead);
+    assert.equal(restored.police.last?.y, pursuit.leadY);
+    assert.notEqual(restored.police.last?.y, restored.body.y);
+    const beat = restored.police.officers[0];
+    const before = Math.abs(beat.x - pursuit.lead);
+    restored.step(1 / 60, neutral);
+    assert.ok(Math.abs(beat.x - pursuit.lead) < before);
+    assert.equal(restored.police.spotted, false);
   }
 });
 

@@ -226,9 +226,9 @@ function frame(now: number) {
       started = false;
       pause.disabled = true;
       if (checkpoint) {
-        const wanted = game.police.level > 0;
-        checkpoint = recoverCheckpoint(checkpoint, wanted, game.police.points);
-        if (wanted) persist(checkpoint);
+        const pursuit = game.police.level ? game.snapshot() : undefined;
+        checkpoint = recoverCheckpoint(checkpoint, pursuit);
+        if (pursuit) persist(checkpoint);
       }
       setRunning(false);
       menuLabels('Knocked out');

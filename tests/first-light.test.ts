@@ -43,7 +43,7 @@ test('the First Light waypoint follows the Kite and a disabled Kite is replaced 
   const game = ready();
   const kite = game.cars[0];
   const initialX = kite.x;
-  kite.x += 140;
+  kite.x += 100;
   dispatch(game);
   assert.equal(game.goal().x, kite.x);
   game.body.x = kite.x;

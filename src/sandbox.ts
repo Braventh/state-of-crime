@@ -1,8 +1,10 @@
 import { CARS, clamp, W } from './config.ts';
 import { Armory, clearShot, weapons, type AttackInput, type Drop } from './combat.ts';
-import { businesses, type Crime, type CrimeKind } from './crime.ts';
+import { businesses, type Business, type Crime, type CrimeKind } from './crime.ts';
 import { blockAt, DISTRICT_WIDTH, ladders, SPAWN, STREET } from './district.ts';
 import { Police, type Suspect } from './police.ts';
+import { savedHeight, type SandboxSave } from './sandbox-save.ts';
+import { shopStock, type Stock } from './shops.ts';
 import { advanceCrowd, gangLoot, streetLife } from './street-life.ts';
 import { bodyAt, closeDoor, traverse, type MotionInput } from './traversal.ts';
 import { commute, fleet, steer, type DriveInput, type Ride } from './vehicles.ts';
@@ -19,6 +21,9 @@ export class Sandbox {
   outfit = 0;
   hair = 0;
   cash = 140;
+  engine = false;
+  armor = false;
+  shop: Business | null = null;
   notice = '';
   noticeTime = 0;
   crime: Crime | null = null;
@@ -71,6 +76,86 @@ export class Sandbox {
 
   announce(message: string) { this.notice = message; this.noticeTime = 3.2; }
 
+  snapshot(): SandboxSave {
+    return {
+      version: 2, x: Math.round(this.body.x), covered: this.body.covered, hp: Math.max(1, this.hp), cash: this.cash,
+      outfit: this.outfit, hair: this.hair, engine: this.engine, armor: this.armor,
+      stock: structuredClone(this.armory.stock), selected: this.armory.slot, regions: ['Crownwater'],
+      robbed: this.actors.filter(a => a.robbed).map(a => a.id), defeated: this.actors.filter(a => !a.hp).map(a => a.id),
+      drops: this.drops.map(d => ({ ...d })),
+      rides: this.rides.filter(r => r.taken || r.hp < CARS[r.kind].health).map(({ id, x, lane, dir, hp, color, taken }) =>
+        ({ id, x: Math.round(clamp(x, 22, DISTRICT_WIDTH - 22)), lane, dir, hp, color, taken })),
+      driving: this.ride?.hp ? this.ride.id : null, heat: this.police.points,
+      evidence: this.police.evidence && { ...this.police.evidence },
+      lead: this.police.last ? Math.round(clamp(this.police.last.x, 22, DISTRICT_WIDTH - 22)) : null,
+    };
+  }
+
+  restore(save: SandboxSave) {
+    this.body = bodyAt(save.x);
+    this.body.covered = save.covered;
+    this.body.y = savedHeight(save);
+    this.camera = clamp(save.x - W * .43, 0, DISTRICT_WIDTH - W);
+    this.hp = save.hp;
+    this.cash = save.cash;
+    this.outfit = save.outfit;
+    this.hair = save.hair;
+    this.engine = save.engine;
+    this.armor = save.armor;
+    this.armory.stock = structuredClone(save.stock);
+    this.armory.slot = save.selected;
+    this.drops = save.drops.map(d => ({ ...d }));
+    for (const a of this.actors) {
+      if (save.robbed.includes(a.id)) a.robbed = true;
+      if (save.defeated.includes(a.id)) { a.hp = 0; a.down = 10; }
+    }
+    for (const ride of this.rides) {
+      const old = save.rides.find(r => r.id === ride.id);
+      if (!old) continue;
+      Object.assign(ride, old, { depth: old.lane, v: 0, traffic: !old.taken && ride.traffic });
+    }
+    this.ride = this.rides.find(ride => ride.id === save.driving) ?? null;
+    if (this.ride) { this.body.x = this.ride.x; this.body.dir = this.ride.dir; }
+    this.police.points = save.heat;
+    this.police.evidence = save.evidence;
+    if (save.lead !== null) this.police.last = { x: save.lead, y: STREET, identity: save.evidence ?? this.suspect.identity, age: 0 };
+  }
+
+  buy(item: Stock) {
+    if (!this.shop || this.business !== this.shop || !shopStock[this.shop.id].includes(item)) return 'Shop unavailable';
+    if (this.cash < item.price) return 'Not enough cash';
+    const cosmetic = item.kind === 'paint' || item.kind === 'hair' || item.kind === 'outfit';
+    if (cosmetic && this.police.level && (this.police.spotted || this.police.watched(this.suspect))) return 'Police are watching · lose sight first';
+    if (item.kind === 'outfit') {
+      if (this.outfit === item.value) return 'Already wearing this outfit';
+      this.outfit = item.value;
+    } else if (item.kind === 'hair') {
+      if (this.hair === item.value) return 'Already styled this way';
+      this.hair = item.value;
+    } else if (item.kind === 'paint') {
+      if (!this.ride || Math.abs(this.ride.v) > 28) return 'Bring a vehicle to a stop nearby';
+      if (this.ride.color === item.value) return 'Already painted this color';
+      this.ride.color = item.value;
+    } else if (item.kind === 'gear') {
+      if (this.armory.stock[item.value]) return 'Already in your inventory';
+      this.armory.supply(item.value);
+    } else if (item.kind === 'ammo') {
+      if (!this.armory.gun.mag) return 'Equip a firearm first';
+      if (this.armory.ammo.reserve >= this.armory.gun.refill * 4) return 'Ammunition reserve full';
+      this.armory.supply(this.armory.slot);
+    } else if (item.kind === 'med') {
+      if (this.hp === 100) return 'Health is already full';
+      this.hp = Math.min(100, this.hp + 60);
+    } else if (item.kind === 'engine' || item.kind === 'armor') {
+      if (this[item.kind]) return 'Upgrade already fitted';
+      this[item.kind] = true;
+    }
+    this.cash -= item.price;
+    this.sound('confirm');
+    this.announce(item.name + ' · −$' + item.price);
+    return '';
+  }
+
   offend(kind: CrimeKind) {
     const { x, y, covered } = this.body;
     const seen = this.actors.filter(actor => actor.hp > 0 && actor.faction === undefined && actor.covered === covered
@@ -93,11 +178,13 @@ export class Sandbox {
   }
 
   get prompt() {
-    if (this.ride) return Math.abs(this.ride.v) > 28 ? 'Space  ·  Brake before exiting' : 'E  ·  Exit vehicle';
+    if (this.ride) return Math.abs(this.ride.v) > 28 ? 'Space  ·  Brake before exiting'
+      : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'E  ·  Exit vehicle';
     const pickup = this.pickup;
     if (pickup) return 'E  ·  Pick up gear';
     const door = closeDoor(this.body);
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
+    if (this.business) return `E  ·  ${this.business.name}${this.robberyTarget?.kind === 'shopRobbery' ? ' / G  ·  Rob' : ''}`;
     const ride = this.availableRide;
     if (ride) return `E  ·  ${ride.taken ? 'Enter' : 'Steal'} ${CARS[ride.kind].label}`;
     if (this.robberyTarget) return `G  ·  ${this.robberyTarget.kind === 'shopRobbery' ? 'Rob ' + this.robberyTarget.name : 'Demand cash'}`;
@@ -118,6 +205,12 @@ export class Sandbox {
       this.offend(target.kind);
       this.announce(target.name + ' · +$' + target.amount);
       this.sound('reward');
+    }
+    if (input.use && this.business && !this.pickup && !closeDoor(this.body) &&
+      (!this.ride || this.business.id === 'paint' && Math.abs(this.ride.v) <= 28)) {
+      this.shop = this.business;
+      this.sound('door');
+      return;
     }
     if (this.ride) this.drive(dt, input);
     else this.onFoot(dt, input);
@@ -189,7 +282,7 @@ export class Sandbox {
 
   private drive(dt: number, input: SandboxInput) {
     const car = this.ride!;
-    const impact = steer(car, [...this.rides, ...this.police.road], input, dt);
+    const impact = steer(car, [...this.rides, ...this.police.road], input, dt, this.engine, this.armor);
     this.body.x = car.x;
     this.body.dir = car.dir;
     if (impact) {
@@ -197,7 +290,7 @@ export class Sandbox {
       this.sound('crash');
       this.announce(car.hp ? 'Collision · bodywork damaged' : 'Vehicle disabled');
     }
-    if ((!car.hp || input.use) && (Math.abs(car.v) <= 28 || !car.hp)) {
+    if ((!car.hp || input.use || input.exit) && (Math.abs(car.v) <= 28 || !car.hp)) {
       car.v = 0;
       this.body = bodyAt(clamp(car.x - car.dir * 34, 22, DISTRICT_WIDTH - 22));
       this.body.dir = car.dir;

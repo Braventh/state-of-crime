@@ -5,7 +5,7 @@ export interface Ride {
   id: string; x: number; v: number; lane: number; depth: number; dir: number; hp: number;
   kind: CarKind; color: string; traffic: boolean; taken: boolean; faction?: number; parked: number;
 }
-export interface DriveInput { side: number; brake?: boolean; laneChange?: number }
+export interface DriveInput { side: number; brake?: boolean; laneChange?: number; exit?: boolean }
 export const rideY = (ride: Ride) => STREET + 15 + ride.depth * 27;
 export const makeRide = (id: string, x: number, kind: CarKind, lane = 1, direction = 1, traffic = false, faction?: number): Ride => ({
   id, x, kind, lane, depth: lane, dir: direction, v: traffic ? direction * 112 : 0,

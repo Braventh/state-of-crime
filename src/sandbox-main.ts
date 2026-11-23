@@ -5,7 +5,9 @@ import { H, W } from './config.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
 import { renderSandbox } from './sandbox-art.ts';
+import { sandboxStorage, type SandboxSave } from './sandbox-save.ts';
 import { loadSettings, storeSettings } from './save.ts';
+import { shopStock } from './shops.ts';
 
 const app = document.querySelector<HTMLElement>('#app')!;
 app.innerHTML = `
@@ -17,7 +19,8 @@ app.innerHTML = `
         <p class="eyebrow">THE CITY AFTER DARK</p>
         <h1 id="menu-title">State of Crime</h1>
         <p class="deck">Crownwater · Lantern Row to Glasshouse Works</p>
-        <button id="play" class="primary">New Game</button>
+        <div class="menu-actions"><button id="play" class="primary">New Game</button><button id="new-game" hidden>New Game</button></div>
+        <p id="save-warning"></p>
         <details id="help"><summary>Controls &amp; settings</summary>
           <dl><div><dt>Walk / sprint</dt><dd>A D or ← → / Shift</dd></div>
           <div><dt>Fire escapes</dt><dd>W S or ↑ ↓</dd></div>
@@ -25,12 +28,21 @@ app.innerHTML = `
           <div><dt>Attack / aim / reload</dt><dd>F / hold Q (+ W S) / R</dd></div>
           <div><dt>Weapon slots</dt><dd>1–6</dd></div>
           <div><dt>Rob</dt><dd>G near a target</dd></div>
-          <div><dt>Drive / lanes / brake</dt><dd>A D / W S / Space</dd></div>
+          <div><dt>Drive / lanes / brake / exit</dt><dd>A D / W S / Space / X</dd></div>
           <div><dt>Pause</dt><dd>Esc</dd></div></dl>
           <label>Volume <input id="volume" type="range" min="0" max="1" step=".05"></label>
           <label><input id="mute" type="checkbox"> Mute</label>
           <label><input id="motion" type="checkbox"> Reduced motion</label>
         </details>
+      </section>
+    </div>
+    <div id="shop" class="shade" hidden>
+      <section class="card shop-card" aria-label="Shop">
+        <p class="eyebrow">CROWNWATER STOREFRONT</p>
+        <h1 id="shop-title"></h1>
+        <p id="shop-message" class="deck" aria-live="polite"></p>
+        <div id="stock-list"></div>
+        <button id="leave-shop">Back <kbd>Esc</kbd></button>
       </section>
     </div>
   </section>
@@ -43,6 +55,8 @@ const audio = new AudioBed(settings);
 const play = get<HTMLButtonElement>('play');
 const pause = get<HTMLButtonElement>('pause');
 const menu = get('menu');
+const shop = get('shop');
+const newGame = get<HTMLButtonElement>('new-game');
 const volume = get<HTMLInputElement>('volume');
 const mute = get<HTMLInputElement>('mute');
 const motion = get<HTMLInputElement>('motion');
@@ -57,26 +71,92 @@ function changeSettings() {
   storeSettings(settings);
 }
 volume.oninput = mute.onchange = motion.onchange = changeSettings;
-let game = new Sandbox(name => audio.cue(name));
+const gameWith = (saved?: SandboxSave | null) => {
+  const result = new Sandbox(name => audio.cue(name));
+  if (saved) result.restore(saved);
+  return result;
+};
+let game = gameWith();
+function browserStorage() { try { return window.localStorage; } catch { return undefined; } }
+const persistence = sandboxStorage(game.snapshot(), browserStorage());
+let checkpoint = persistence.saved;
+let saveWarning = persistence.warning;
+let saveAt = 0;
 let started = false;
 let running = false;
 pause.disabled = true;
+function save(replace = false) {
+  if (!started || !game.hp) return;
+  checkpoint = game.snapshot();
+  const status = persistence.write(checkpoint, replace);
+  saveWarning = status === 'changed' ? 'Save changed in another tab · this session only'
+    : status === 'unavailable' ? 'Storage unavailable · this session only' : '';
+}
+function menuLabels(title?: string) {
+  get('menu-title').textContent = title ?? (started ? 'Paused' : 'State of Crime');
+  play.textContent = title ? 'Retry' : started ? 'Resume' : checkpoint ? 'Continue' : 'New Game';
+  newGame.hidden = !started && !checkpoint;
+  get('save-warning').textContent = saveWarning;
+}
 function setRunning(value: boolean) {
   running = value;
   menu.hidden = value;
-  get('menu-title').textContent = started ? 'Paused' : 'State of Crime';
-  play.textContent = started ? 'Resume' : 'New Game';
+  menuLabels();
   if (!value) play.focus();
   else if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   resetInput();
 }
-play.onclick = () => {
+function begin(saved: SandboxSave | null, replace = false) {
   audio.wake();
+  game = gameWith(saved);
   started = true;
   pause.disabled = false;
+  saveAt = 0;
+  save(replace);
   setRunning(true);
+}
+play.onclick = () => {
+  if (started) setRunning(true);
+  else begin(checkpoint);
 };
-pause.onclick = () => { if (running) setRunning(false); };
+newGame.onclick = () => {
+  if (window.confirm('Start a new game and replace this Crownwater checkpoint?')) begin(null, true);
+};
+pause.onclick = () => { if (running && !game.shop) { save(); setRunning(false); } };
+window.addEventListener('pagehide', () => save());
+menuLabels();
+function closeShop() {
+  shop.hidden = true;
+  game.shop = null;
+  get('leave-shop').blur();
+  resetInput();
+}
+get('leave-shop').onclick = closeShop;
+function showShop() {
+  const market = game.shop!;
+  const stock = get('stock-list');
+  get('shop-title').textContent = market.name;
+  get('shop-message').textContent = `Available cash $ ${game.cash}`;
+  stock.replaceChildren();
+  for (const item of shopStock[market.id]) {
+    const button = document.createElement('button');
+    button.className = 'stock';
+    const name = document.createElement('strong'), info = document.createElement('small'), price = document.createElement('span');
+    name.textContent = item.name;
+    info.textContent = item.info;
+    price.textContent = '$' + item.price;
+    button.append(name, price, info);
+    button.onclick = () => {
+      const result = game.buy(item);
+      get('shop-message').textContent = result || `${item.name} purchased · $${game.cash} left`;
+      if (!result) save();
+    };
+    stock.append(button);
+  }
+  shop.hidden = false;
+  get('leave-shop').focus();
+  resetInput();
+}
 startInput(() => started);
 let previous = performance.now();
 function label(id: string, value: string) {
@@ -86,8 +166,11 @@ function label(id: string, value: string) {
 function frame(now: number) {
   const dt = Math.min(.035, (now - previous) / 1000);
   previous = now;
-  if (started && tap('Escape')) setRunning(!running);
-  if (running) {
+  if (started && tap('Escape')) {
+    if (game.shop) closeShop();
+    else { if (running) save(); setRunning(!running); }
+  }
+  if (running && !game.shop) {
     const vertical = Number(held('KeyS', 'ArrowDown')) - Number(held('KeyW', 'ArrowUp'));
     const slot = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].findIndex(key => tap(key));
     game.step(dt, {
@@ -96,18 +179,23 @@ function frame(now: number) {
       aim: held('KeyQ'), incline: vertical, reload: tap('KeyR'), fire: held('KeyF') || tap('KeyF'),
       slot: slot < 0 ? undefined : slot as WeaponId, rob: tap('KeyG'), brake: held('Space'),
       laneChange: Number(tap('KeyS', 'ArrowDown')) - Number(tap('KeyW', 'ArrowUp')),
+      exit: tap('KeyX'),
     });
+    if (game.shop) showShop();
     if (!game.hp) {
-      setRunning(false);
-      get('menu-title').textContent = 'Knocked out';
-      play.textContent = 'Restart';
       started = false;
-      game = new Sandbox(name => audio.cue(name));
+      pause.disabled = true;
+      setRunning(false);
+      if (checkpoint) checkpoint = { ...checkpoint, hp: 70 };
+      menuLabels('Knocked out');
+    } else if (game.time >= saveAt && game.body.grounded && !game.body.climb) {
+      saveAt = game.time + 1.4;
+      save();
     }
   }
   clearEdges();
   const police = game.police;
-  audio.step(Math.abs(game.ride?.v ?? 0), police.spotted ? police.level : Math.max(0, police.level - 1), Boolean(game.ride), running);
+  audio.step(Math.abs(game.ride?.v ?? 0), police.spotted ? police.level : Math.max(0, police.level - 1), Boolean(game.ride), running && !game.shop);
   renderSandbox(context, game, started ? game.time : now / 1000, settings.reduced);
   label('block', game.block.name);
   label('prompt', started ? game.noticeTime && game.notice ? game.notice : game.prompt : 'No jobs. No fixed route.');

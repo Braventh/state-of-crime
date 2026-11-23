@@ -94,7 +94,7 @@ export class Police {
     const factor = rapid ? .31 : observed ? 1.25 : crime.witnesses ? 1 : noise ? .72 : .24;
     const serious = crime.kind === 'gunfire' || crime.kind === 'officerAttacked' || crime.kind === 'officerDown'
       || crime.kind === 'civilianDown';
-    const limit = observed && serious ? 200 : Math.max(this.points, thresholds[4] - 1);
+    const limit = this.level === 5 || (observed && serious) ? 200 : Math.max(this.points, thresholds[4] - 1);
     const escalation = this.level < 2 ? 1 : .52;
     this.points = Math.min(limit, this.points + Math.ceil(severity[crime.kind] * factor * escalation));
     if (observed) this.remember(s);

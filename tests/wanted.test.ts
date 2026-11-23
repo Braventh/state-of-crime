@@ -73,6 +73,23 @@ test('Police do not cool off in sight, do not track movement in cover, and can l
   assert.deepEqual(police.tells, []);
 });
 
+test('Observed theft adds heat during maximum response without unlocking it on its own', () => {
+  const police = new Police();
+  const player = suspect(980);
+  const theft = { kind: 'theft', x: player.x, y: player.y, covered: false, witnesses: 0 } as const;
+  police.points = 150;
+  assert.equal(police.report(theft, player), true);
+  assert.equal(police.level, 4);
+  assert.equal(police.points, 152);
+
+  police.points = 180;
+  assert.equal(police.report(theft, player), true);
+  assert.equal(police.level, 5);
+  assert.equal(police.points, 195);
+  police.report(theft, player);
+  assert.equal(police.points, 200);
+});
+
 test('Response cruiser enters outside the camera and refuses to conjure a unit in a narrow edge gap', () => {
   const police = new Police();
   const person = suspect(1690);

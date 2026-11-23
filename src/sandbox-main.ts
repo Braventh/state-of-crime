@@ -126,7 +126,14 @@ play.onclick = () => {
 newGame.onclick = () => {
   if (window.confirm('Start a new game and replace this Crownwater checkpoint?')) begin(null, true);
 };
-pause.onclick = () => { if (running && !game.shop) { save(); setRunning(false); } };
+function pausePlay() {
+  if (!running || game.shop) return;
+  save();
+  setRunning(false);
+}
+pause.onclick = pausePlay;
+window.addEventListener('blur', pausePlay);
+document.addEventListener('visibilitychange', () => { if (document.hidden) pausePlay(); });
 window.addEventListener('pagehide', () => save());
 menuLabels();
 function closeShop() {
@@ -161,7 +168,7 @@ function showShop() {
   get('leave-shop').focus();
   resetInput();
 }
-startInput(() => started);
+startInput(() => running && !game.shop);
 let previous = performance.now();
 function label(id: string, value: string) {
   const el = get(id);
@@ -172,7 +179,8 @@ function frame(now: number) {
   previous = now;
   if (started && tap('Escape')) {
     if (game.shop) closeShop();
-    else { if (running) save(); setRunning(!running); }
+    else if (running) pausePlay();
+    else setRunning(true);
   }
   if (running && !game.shop) {
     const vertical = Number(held('KeyS', 'ArrowDown')) - Number(held('KeyW', 'ArrowUp'));
@@ -208,9 +216,8 @@ function frame(now: number) {
   label('vehicle-notice', vehicleNotice);
   get('vehicle-notice').hidden = !vehicleNotice;
   label('prompt', started ? (!game.ride && notice) || game.prompt : 'No jobs. No fixed route.');
-  const { gun, ammo, loading } = game.armory;
   label('equipment', game.ride ? `${Math.round(Math.abs(game.ride.v) / 3.9)} mph · ${Math.ceil(game.ride.hp)} integrity`
-    : gun.mag ? `${gun.name} · ${loading ? 'Reloading' : ammo.rounds + ' / ' + ammo.reserve}` : gun.name);
+    : game.armory.readout);
   label('status', `HP ${game.hp} · $${game.cash}`);
   label('stars', '★'.repeat(police.level) + '☆'.repeat(5 - police.level));
   label('pursuit', police.level ? police.mode + ' · ' + police.response.name : 'Crownwater / Free roam');

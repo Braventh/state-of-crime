@@ -1,6 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
+import { actorAt } from '../src/combat.ts';
 import { businesses } from '../src/crime.ts';
+import { DISTRICT_WIDTH } from '../src/district.ts';
 import { Sandbox } from '../src/sandbox.ts';
 import { shopStock } from '../src/shops.ts';
 import { bodyAt } from '../src/traversal.ts';
@@ -114,4 +116,50 @@ test('Motorworks keeps E for the shop and lets X re-enter a parked ride before r
   assert.equal(game.buy(paint), '');
   assert.equal(game.cash, 140 - paint.price);
   assert.equal(car.color, paint.value);
+});
+
+test('Stealing an inbound commuter does not crash it at either driving boundary', () => {
+  for (const direction of [1, -1]) {
+    const game = new Sandbox();
+    const commuter = game.rides.find(ride => ride.traffic)!;
+    const left = direction === 1;
+    game.rides = [commuter];
+    game.body = bodyAt(left ? 22 : DISTRICT_WIDTH - 22);
+    Object.assign(commuter, { x: left ? -25 : DISTRICT_WIDTH + 25, v: direction * 112, dir: direction });
+    const integrity = commuter.hp;
+    game.step(1 / 60, { ...neutral, use: true });
+    assert.equal(game.ride, commuter);
+    const heat = game.police.points;
+    game.step(1 / 60, { ...neutral, side: direction });
+    assert.equal(commuter.hp, integrity);
+    assert.ok(commuter.v * direction > 105);
+    assert.equal(game.crime?.kind, 'carjacking');
+    assert.ok(game.police.points <= heat);
+
+    commuter.v = -direction * 180;
+    game.step(1 / 60, { ...neutral, side: -direction });
+    assert.ok(commuter.hp < integrity);
+    assert.equal(commuter.v, 0);
+    assert.equal(game.crime?.kind, 'damage');
+  }
+});
+
+test('A bullet reports gunfire even when it hits a pedestrian outside witness range', () => {
+  const hit = new Sandbox();
+  const missed = new Sandbox();
+  const victim = actorAt('distant-pedestrian', 642, 2);
+  hit.actors = [victim];
+  missed.actors = [];
+  for (const game of [hit, missed]) {
+    game.body = bodyAt(400);
+    game.police.officers = [];
+    game.armory.supply(2);
+    game.step(1 / 60, { ...neutral, fire: true });
+  }
+  assert.ok(victim.hp < 100);
+  assert.equal(hit.crime?.kind, 'assault');
+  assert.equal(hit.crime?.witnesses, 0);
+  assert.equal(missed.crime?.kind, 'gunfire');
+  assert.ok(missed.police.level > 0);
+  assert.ok(hit.police.points > missed.police.points);
 });

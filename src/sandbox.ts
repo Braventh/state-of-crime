@@ -184,7 +184,12 @@ export class Sandbox {
     if (this.ride) return Math.abs(this.ride.v) > 28 ? 'W / S  ·  Change lanes / Space  ·  Brake to exit'
       : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'W / S  ·  Change lanes / E or X  ·  Exit';
     const pickup = this.pickup;
-    if (pickup) return 'E  ·  Pick up gear';
+    if (pickup) {
+      if (pickup.weapon === undefined) return 'E  ·  Pick up cash';
+      const weapon = weapons[pickup.weapon];
+      const ammo = weapon.mag && this.armory.stock[pickup.weapon];
+      return `E  ·  Pick up ${weapon.name}${ammo ? ' ammo' : ''}`;
+    }
     const door = closeDoor(this.body);
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
     if (this.business) {
@@ -246,6 +251,7 @@ export class Sandbox {
     const car = !this.pickup && !closeDoor(this.body) && (input.use ? this.availableRide : input.exit ? this.motorworksRide : undefined);
     if (car) {
       this.ride = car;
+      this.armory.impact = null;
       if (!car.taken) {
         this.offend(car.traffic ? 'carjacking' : 'theft');
         this.announce(car.traffic ? 'Vehicle taken from driver' : 'Vehicle stolen');
@@ -264,11 +270,20 @@ export class Sandbox {
       return;
     }
     if (pickup) {
-      if (pickup.weapon !== undefined) this.armory.supply(pickup.weapon);
+      let gear = '';
+      if (pickup.weapon !== undefined) {
+        const { name } = weapons[pickup.weapon];
+        const rounds = this.armory.supply(pickup.weapon);
+        gear = rounds === undefined ? `${name} equipped · Slot ${pickup.weapon + 1}`
+          : rounds ? `${name} · +${rounds} reserve`
+          : weapons[pickup.weapon].mag ? `${name} reserve full` : `${name} already owned`;
+      }
       if (pickup.cash) this.cash += pickup.cash;
-      this.announce([pickup.weapon === undefined ? '' : weapons[pickup.weapon].name, pickup.cash ? '+$' + pickup.cash : ''].filter(Boolean).join(' · '));
+      this.announce([gear, pickup.cash ? '+$' + pickup.cash : ''].filter(Boolean).join(' · '));
       this.drops.splice(this.drops.indexOf(pickup), 1);
       this.sound('reward');
+    } else if (input.slot !== undefined && !this.armory.stock[input.slot]) {
+      this.announce(`Slot ${input.slot + 1} · ${weapons[input.slot].name} not owned`);
     }
     const cue = traverse(this.body, { ...input, vertical: input.aim ? 0 : input.vertical, use: input.use && !pickup }, dt);
     if (cue) this.sound(cue);
@@ -277,6 +292,7 @@ export class Sandbox {
       this.sound('step');
     }
     const attack = this.armory.step(dt, input, this.body, [...this.actors, ...this.police.officers], this.sound);
+    if (attack?.loud) this.offend('gunfire');
     const enemy = attack?.target;
     if (enemy) {
       enemy.dir = this.body.dir;
@@ -286,8 +302,6 @@ export class Sandbox {
       }
       this.offend(enemy.role === 'officer' ? attack.killed ? 'officerDown' : 'officerAttacked'
         : enemy.role === 'gang' ? 'gangFight' : attack.killed ? 'civilianDown' : 'assault');
-    } else if (attack?.loud) {
-      this.offend('gunfire');
     }
   }
 

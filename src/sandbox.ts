@@ -79,7 +79,7 @@ export class Sandbox {
 
   snapshot(): SandboxSave {
     return {
-      version: 2, x: Math.round(this.body.x), covered: this.body.covered, hp: Math.max(1, this.hp), cash: this.cash,
+      version: 2, x: Math.round(clamp(this.body.x, 22, DISTRICT_WIDTH - 22)), covered: this.body.covered, hp: Math.max(1, this.hp), cash: this.cash,
       outfit: this.outfit, hair: this.hair, engine: this.engine, armor: this.armor,
       stock: structuredClone(this.armory.stock), selected: this.armory.slot, regions: ['Crownwater'],
       robbed: this.actors.filter(a => a.robbed).map(a => a.id), defeated: this.actors.filter(a => !a.hp).map(a => a.id),

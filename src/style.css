@@ -71,6 +71,7 @@ h1 em { display: block; font-size: 13cqw; font-style: italic; line-height: .84; 
 h1 em span { color: #ef998f; }
 .tagline { font-size: clamp(11px, 2.25cqw, 30px); font-weight: 820; letter-spacing: -.055em; color: #ffb394; }
 .cover p, .panel p { font-size: clamp(9px, 1.3cqw, 16px); line-height: 1.55; color: #e1bcc0; margin: .7cqw 0 1.8cqw; max-width: 36cqw; }
+.cover .checkpoint-summary { font-size: clamp(8px, 1.12cqw, 14px); margin-bottom: 0; }
 .buttons { display: flex; flex-wrap: wrap; gap: .65cqw; }
 .buttons button, .garage-list button { font: 750 clamp(9px, 1.2cqw, 15px) system-ui; padding: .7cqw 1.15cqw; border: 1px solid #aa7888; white-space: nowrap; cursor: pointer; color: #f6d6c8; background: #2c2236ed; }
 .buttons button.primary { color: #271c2c; border-color: #ffc4a0; background: #f2ae96; }

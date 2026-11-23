@@ -29,4 +29,5 @@ test('retry restores the session checkpoint when browser storage rejected the wr
   assert.equal(restored.progress.cash, 840);
   assert.equal(restored.progress.completed, 2);
   assert.equal(restored.lost, false);
+  assert.equal(restored.storageOK, false);
 });

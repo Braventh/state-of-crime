@@ -32,7 +32,9 @@ Host the generated `dist/` directory on any static HTTP host. It uses relative a
 
 Borrowing a vehicle can attract police. Keep moving to leave their search area, or slow down at Sidecar Garage or Bluehour Refuge and press **E** to hide. The HUD shows your next objective and which way to go. Sidecar upgrades apply to garage vehicles; stage your selected ride to take it out.
 
-Mission payouts, owned vehicles and upgrades save at safe checkpoints. Settings save separately. Use **Continue** after refresh; active jobs and pursuits reset.
+Sidecar has a garage in Crownwater and an outpost just east of Bluehour Refuge. Bring a Sidecar ride to a driving job to use your upgrades, or take the free Sable loaner.
+
+Checkpoints save at job contacts when you accept, when you earn a payout, and when you purchase or service a ride. **Continue from checkpoint** keeps your campaign progress, cash, vehicles, and upgrades; any active job restarts and pursuit clears. If browser storage is unavailable, the latest checkpoint only lasts until you close or refresh the tab. Settings save separately.
 
 ## More
 

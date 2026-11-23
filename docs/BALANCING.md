@@ -13,4 +13,4 @@ On foot: 145 walk speed, 211 sprint, 343 jump impulse, 930 gravity; 100 ms of co
 
 Search takes 3.5–6.5 s after breaking contact or hiding, scaled to heat. Units spawn at least 530 units away and only during pursuit; the three cases most useful to testers are a quick route away from a level-1 unit, the faster loaner at level 2, and the ability to get into a refuge before contact at high heat.
 
-Initial $120 plus job one funds the $420 engine tune. Armor is $340, a van $520 and a coupe $680. Payouts are one-time; all permanent items can be bought with campaign earnings without grinding.
+Initial $120 plus job one funds the $420 engine tune. The faster route to upgrades is the Sidecar Outpost just east of Bluehour after Tail Lights. Armor is $340, a van $520 and a coupe $680. An engine tune adds 22% top speed and 16% acceleration; armor absorbs 32% of incoming damage. Both apply only to Sidecar rides, not loaners. Payouts are one-time; all permanent items can be bought with campaign earnings without grinding.

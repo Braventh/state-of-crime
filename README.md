@@ -9,10 +9,10 @@ Install Node.js 22.12+ and run:
 ```sh
 npm ci
 npm run build
-npm run preview -- --port 4176
+npm run preview -- --port 4179
 ```
 
-Open [http://localhost:4176/](http://localhost:4176/) in a desktop browser. Use `npm run dev` for development and `npm test` for automated checks. The build uses relative asset paths: serve `dist/` on any static HTTP host. It has no server API, external assets or accounts. The existing Pages workflow deploys on pushes to `main`; V2 is developed separately on `devin/state-of-crime-v2`.
+Open [http://localhost:4179/](http://localhost:4179/) in a desktop browser. Use `npm run dev` for development and `npm test` for automated checks. The build uses relative asset paths: serve `dist/` on any static HTTP host. It has no server API, external assets or accounts. The existing Pages workflow deploys on pushes to `main`; V2 is developed separately on `devin/state-of-crime-v2`.
 
 | Keys | On foot | Driving |
 | --- | --- | --- |
@@ -29,6 +29,10 @@ Open [http://localhost:4176/](http://localhost:4176/) in a desktop browser. Use 
 Start on Lantern Row. The first pipe is just to the right; fire escapes to the left lead to a pistol. Find lit turquoise doors for covered routes. Store signs mark the clothing shop, salon, arms dealer, pharmacy and motorworks. The HUD shows the block, interactions, health, cash, equipment and police response. Police search where they last saw or heard you. A different look or fresh paint helps after you break visual contact; it never clears stars immediately.
 
 The browser auto-saves Crownwater progress in a V2 slot. **Continue** restores that slot; **New Game** asks before replacing an existing checkpoint. V1 cash and upgrades can be imported without overwriting the V1 slot. Use the menu for volume, mute and reduced motion.
+
+Five-star response requires sustained serious crime in police sight. Breaking contact and getting away from the last-known location or into cover lets the search cool down.
+
+Phase 1 incorporates the onboarding, combat, vehicle, police, and crime/economy playtests (PRs #8–#12). The [combined playtest report](docs/PLAYTEST_REPORT.md) records the 69 automated tests, production Chrome routes, and remaining gaps.
 
 - [Architecture](docs/TECHNICAL_ARCHITECTURE.md) · [District and gameplay systems](docs/SANDBOX_SYSTEMS.md)
 - [Phase 1 playtest checklist](docs/TEST_PLAN.md) · [Executed checks and performance](docs/PLAYTEST_REPORT.md)

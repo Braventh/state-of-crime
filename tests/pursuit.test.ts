@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { render } from '../src/art.ts';
 import { Game } from '../src/game.ts';
-import { TUNE } from '../src/config.ts';
+import { LIMIT, TUNE, W } from '../src/config.ts';
 import { fresh } from '../src/save.ts';
 
 function ticks(game: Game, seconds: number) {
@@ -87,4 +88,35 @@ test('switching lanes during the tell makes a ram miss', () => {
   ticks(game, TUNE.police.ramWindup + .1);
   assert.equal(unit.ramAt, 0);
   assert.equal(car.hp, integrity);
+});
+
+test('a ram that can hit at either road boundary keeps its warning inside the canvas', () => {
+  for (const [x, patrolX] of [[14, 10], [LIMIT - 14, LIMIT - 10]]) {
+    const game = new Game({ ...fresh(), x }, () => {});
+    game.reportCrime(4);
+    const unit = patrol(game, patrolX);
+    unit.heavy = true;
+    ticks(game, 1 / 60);
+    assert.ok(unit.ramAt > game.clock);
+
+    const backgrounds: [number, number][] = [];
+    const labels: number[] = [];
+    const gradient = () => ({ addColorStop() {} });
+    const canvas = new Proxy({
+      createLinearGradient: gradient, createRadialGradient: gradient,
+      fillRect(left: number, _y: number, width: number, height: number) {
+        if (height === 15) backgrounds.push([left, width]);
+      },
+      fillText(name: string, center: number) {
+        if (name === 'HEAVY RAM') labels.push(center);
+      },
+    }, { get: (target, key) => Reflect.get(target, key) ?? (() => {}) }) as unknown as CanvasRenderingContext2D;
+    render(canvas, game.clock, game, true);
+    assert.equal(labels.length, 1);
+    assert.ok(backgrounds.some(([left, width]) =>
+      Math.abs(left + width / 2 - labels[0]) <= 1 && left >= 0 && left + width <= W));
+
+    ticks(game, TUNE.police.ramWindup + .1);
+    assert.equal(game.hp, TUNE.maxHealth - 19);
+  }
 });

@@ -302,10 +302,11 @@ function vehicle(c: Ctx, x: number, y: number, kind: Vehicle['kind'], dir: numbe
   }
   c.restore();
 }
-function marker(c: Ctx, x: number, y: number, clock: number, name: string, color: string) {
-  if (x < 18 || x > W - 18) return;
-  const yy = Math.floor(y + Math.sin(clock * 3.7) * 4);
+function marker(c: Ctx, x: number, y: number, clock: number, name: string, color: string, keepVisible = false) {
   const len = name.length * 5.3 + 14;
+  if (keepVisible) x = clamp(x, len / 2 + 2, W - len / 2 - 2);
+  else if (x < 18 || x > W - 18) return;
+  const yy = Math.floor(y + Math.sin(clock * 3.7) * 4);
   box(c, '#1d1a2ae8', x - len / 2, yy - 19, len, 15);
   box(c, color, x - len / 2, yy - 19, len, 1);
   type(c, name.toUpperCase(), x, yy - 8, color, 8, true);
@@ -362,7 +363,7 @@ export function render(c: Ctx, now: number, game: Game | null, reduced: boolean)
     }
     if (!game.hide) for (const u of game.units) {
       if (u.ramAt) marker(c, u.x - cam, ROAD - 52 + u.lane * TUNE.laneOffset, clock,
-        u.heavy ? 'HEAVY RAM' : 'RAM', '#ffb19a');
+        u.heavy ? 'HEAVY RAM' : 'RAM', '#ffb19a', true);
     }
     if (game.index === 3 && game.job) {
       vehicle(c, game.job.rival - cam, ROAD + 24, 'coupe', 1, 258, '#87d1bd', clock);

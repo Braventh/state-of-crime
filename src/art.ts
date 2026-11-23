@@ -360,6 +360,10 @@ export function render(c: Ctx, now: number, game: Game | null, reduced: boolean)
       for (const u of game.units) if (visible(u.x) && Math.round(u.lane) === lane)
         vehicle(c, u.x - cam, ROAD + 5 + u.lane * TUNE.laneOffset, u.heavy ? 'van' : 'compact', u.dir, u.v, '#4c587a', clock, true, u.heavy);
     }
+    if (!game.hide) for (const u of game.units) {
+      if (u.ramAt) marker(c, u.x - cam, ROAD - 52 + u.lane * TUNE.laneOffset, clock,
+        u.heavy ? 'HEAVY RAM' : 'RAM', '#ffb19a');
+    }
     if (game.index === 3 && game.job) {
       vehicle(c, game.job.rival - cam, ROAD + 24, 'coupe', 1, 258, '#87d1bd', clock);
       marker(c, game.job.rival - cam, ROAD - 18, clock, 'ROUX', '#9ce3d0');

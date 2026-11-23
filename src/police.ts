@@ -99,7 +99,7 @@ export class Police {
       this.reports.push({ x: Math.round(crime.x / 32) * 32, y: crime.y, identity: { ...s.identity }, age: 0,
         delay: crime.witnesses ? .8 : 1.25 });
     }
-    if (!this.last && this.level) this.last = { x: Math.round(crime.x / 64) * 64, y: STREET, identity: { ...s.identity }, age: 0 };
+    if (!this.last && this.level) this.last = { x: Math.round(crime.x / 64) * 64, y: crime.y, identity: { ...s.identity }, age: 0 };
     return observed;
   }
   private remember(s: Suspect) {

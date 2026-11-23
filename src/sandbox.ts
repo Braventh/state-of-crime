@@ -103,6 +103,7 @@ export class Sandbox {
   announce(message: string) { this.notice = message; this.noticeTime = 3.2; }
 
   snapshot(): SandboxSave {
+    const lead = this.police.last;
     return {
       version: 2, x: Math.round(clamp(this.body.x, 22, DISTRICT_WIDTH - 22)), covered: this.body.covered, hp: Math.max(1, this.hp), cash: this.cash,
       outfit: this.outfit, hair: this.hair, engine: this.engine, armor: this.armor,
@@ -113,7 +114,8 @@ export class Sandbox {
         ({ id, x: Math.round(clamp(x, 22, DISTRICT_WIDTH - 22)), lane, dir, hp, color, taken })),
       driving: this.ride?.hp ? this.ride.id : null, heat: this.police.points,
       evidence: this.police.evidence && { ...this.police.evidence },
-      lead: this.police.last ? Math.round(clamp(this.police.last.x, 22, DISTRICT_WIDTH - 22)) : null,
+      lead: lead ? Math.round(clamp(lead.x, 22, DISTRICT_WIDTH - 22)) : null,
+      ...(lead && { leadY: Math.round(lead.y) }),
     };
   }
 
@@ -144,7 +146,8 @@ export class Sandbox {
     if (this.ride) { this.body.x = this.ride.x; this.body.dir = this.ride.dir; }
     this.police.points = save.heat;
     this.police.evidence = save.evidence;
-    if (save.lead !== null) this.police.last = { x: save.lead, y: STREET, identity: save.evidence ?? this.suspect.identity, age: 0 };
+    if (save.lead !== null) this.police.last = { x: save.lead, y: save.leadY ?? STREET,
+      identity: save.evidence ?? this.suspect.identity, age: 0 };
   }
 
   purchaseIssue(item: Stock) {

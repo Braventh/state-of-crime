@@ -1,10 +1,9 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { businesses } from '../src/crime.ts';
-import { DISTRICT_WIDTH } from '../src/district.ts';
+import { DISTRICT_WIDTH, inside, STREET } from '../src/district.ts';
 import { Sandbox } from '../src/sandbox.ts';
 import { decodeSandbox, recoverCheckpoint, SANDBOX_KEY, sandboxStorage } from '../src/sandbox-save.ts';
-import { inside } from '../src/district.ts';
 import { fresh, SAVE_KEY } from '../src/save.ts';
 import { paints, shopStock } from '../src/shops.ts';
 import { bodyAt } from '../src/traversal.ts';
@@ -171,6 +170,25 @@ test('A wanted knockout retries from the nearest cover without losing progress o
   assert.equal(restored.ride, null);
   assert.equal(restored.rides[0].x, original.x);
   assert.equal(restored.rides[0].color, game.ride.color);
+});
+
+test('Reloading preserves distance from a rooftop search, and older saves still load', () => {
+  const game = new Sandbox();
+  game.body = bodyAt(1600);
+  game.police.points = 50;
+  game.police.last = { x: 1600, y: 257, age: 0, identity: game.suspect.identity };
+  const original = game.snapshot();
+  const saved = decodeSandbox(JSON.stringify(original));
+  assert.ok(saved);
+  const restored = new Sandbox();
+  restored.restore(saved);
+  restored.police.sinceSeen = 2;
+  assert.equal(restored.police.last?.y, 257);
+  assert.match(restored.police.readout(restored.suspect), /^Out of sight · Cooling in/);
+  const legacy = decodeSandbox(JSON.stringify({ ...original, leadY: undefined }));
+  assert.ok(legacy);
+  restored.restore(legacy);
+  assert.equal(restored.police.last?.y, STREET);
 });
 
 test('Storage migrates only compatible V1 data, rejects bad V2 data and protects a newer tab', () => {

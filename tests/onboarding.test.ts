@@ -10,13 +10,13 @@ test('First Light points to Mara, then the Kite, then Tidelane as soon as you bo
   assert.match(game.goal().hint ?? '', /gold marker.*press E/);
 
   game.body.x = POINTS.contact.x;
-  assert.equal(game.prompt(), 'Talk to Mara');
+  assert.deepEqual(game.prompt(), { label: 'Talk to Mara', key: 'E' });
   const kite = game.cars[0];
   game.job = { time: 0, drove: false, driveStart: kite.x, beacon: false, rival: 0 };
   assert.equal(game.goal().x, kite.x);
   assert.equal(game.goal().name, 'Orange Kite');
   game.body.x = kite.x;
-  assert.equal(game.prompt(), 'Borrow Kite Compact');
+  assert.deepEqual(game.prompt(), { label: 'Borrow Kite Compact', key: 'E' });
 
   game.car = kite;
   assert.equal(game.job.drove, false);

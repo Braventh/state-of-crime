@@ -1,7 +1,7 @@
 import './style.css';
 import { render } from './art.ts';
 import { AudioBed } from './audio.ts';
-import { CARS, GARAGE_TUNING, H, JOBS, LIMIT, TOOLS, TUNE, UPGRADES, W, clamp, regionAt, type CarKind } from './config.ts';
+import { CARS, GARAGE_TUNE, H, JOBS, LIMIT, TOOLS, TUNE, UPGRADES, W, clamp, regionAt, type CarKind } from './config.ts';
 import { Game, type Purchase } from './game.ts';
 import { clearEdges, resetInput, startInput, tap } from './input.ts';
 import { fresh, loadSave, loadSettings, storeSettings, type Progress } from './save.ts';
@@ -13,19 +13,23 @@ app.innerHTML = `
     <div class="mast-right"><span class="live"></span> PALMETTO STATE <span class="muted">/</span> VOL. 01</div>
   </header>
   <div class="frame">
-    <canvas aria-label="Side-scrolling streets of Palmetto State" width="${W}" height="${H}"></canvas>
-    <div class="grain"></div>
-    <section class="hud" hidden aria-label="Game status">
-      <div class="top-left"><div class="caps" id="district"></div><div id="area"></div><div id="vitals"></div></div>
-      <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div><div id="refuge"></div></div>
+    <div class="stage">
+      <canvas aria-label="Side-scrolling streets of Palmetto State" width="${W}" height="${H}"></canvas>
+      <div class="grain"></div>
+      <section class="hud" hidden aria-label="Game status">
+        <div class="top-left"><div class="caps" id="district"></div><div id="area"></div><div id="vitals"></div></div>
+        <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div><div id="refuge"></div></div>
+        <div class="notice" id="notice" role="status"></div>
+        <div class="hidden-state" id="hide" hidden><div class="caps">RADIO SILENCE</div><strong>Below the signal.</strong><div id="hide-detail"></div></div>
+        <button class="pause-button" type="button" id="pause" aria-label="Pause">Ⅱ</button>
+      </section>
+      <section class="overlay" aria-label="Game menu"></section>
+    </div>
+    <section class="hud-dock" hidden aria-label="Current objective">
       <div class="job"><div class="caps" id="jobname"></div><div id="objective"></div><div id="distance"></div><div id="goal-hint" hidden></div></div>
       <div class="tracker" aria-label="District map"><div class="roadline"><i id="map-target"></i><i id="map-player"></i></div><div class="maplabels"><span>CROWN</span><span>KEYS</span><span>YARD</span></div></div>
       <div class="interaction" id="interaction"></div>
-      <div class="notice" id="notice" role="status"></div>
-      <div class="hidden-state" id="hide" hidden><div class="caps">RADIO SILENCE</div><strong>Below the signal.</strong><div id="hide-detail"></div></div>
-      <button class="pause-button" type="button" id="pause" aria-label="Pause">Ⅱ</button>
     </section>
-    <section class="overlay" aria-label="Game menu"></section>
   </div>
   <footer><span><b>01</b> &nbsp; THE PALMETTO TAPES <i></i> A COASTAL SANDBOX</span><span>KEYBOARD REQUIRED TO PLAY <i></i> <kbd>ESC</kbd> MENU</span></footer>
 `;
@@ -34,6 +38,7 @@ const canvas = app.querySelector('canvas')!;
 const overlay = app.querySelector<HTMLElement>('.overlay')!;
 const ctx = canvas.getContext('2d', { alpha: false })!;
 const hud = app.querySelector<HTMLElement>('.hud')!;
+const dock = app.querySelector<HTMLElement>('.hud-dock')!;
 const settings = loadSettings();
 const audio = new AudioBed(settings);
 let game: Game | null = null;
@@ -51,6 +56,9 @@ const controls = `
 const btn = (id: string, text: string, primary = false, disabled = false) =>
   '<button type="button" data-action="' + id + '" class="' + (primary ? 'primary' : 'secondary') + '"' + (disabled ? ' disabled' : '') + '>' + text + '</button>';
 const carKeys = Object.keys(CARS) as CarKind[];
+const percent = (ratio: number) => Math.round(ratio * 100) + '%';
+const garageItem = (title: string, detail: string, badge: string) =>
+  '<span>' + title + '<small>' + detail + '</small></span><span>' + badge + '</span>';
 const newGame = (progress: Progress) => new Game(progress, name => audio.cue(name));
 function start(next: Game, continueFromCheckpoint = false) {
   game = next;
@@ -65,7 +73,7 @@ function goto(s: typeof scene) {
   needsRender = true;
   resetInput();
   document.body.classList.toggle('reduced', settings.reduced);
-  hud.hidden = !game || scene === 'title';
+  dock.hidden = hud.hidden = !game || scene === 'title';
   overlay.hidden = scene === 'play';
   overlay.className = 'overlay ' + scene;
   if (s === 'play') { (document.activeElement as HTMLElement | null)?.blur(); return; }
@@ -95,14 +103,21 @@ function goto(s: typeof scene) {
     <label class="toggle">Reduced motion <input id="reduced" type="checkbox" ${settings.reduced ? 'checked' : ''}></label>`);
   if (s === 'garage' && game?.garage) {
     const p = game.progress;
-    const products = (['engine', 'armor'] as const).map(k => btn(k, (k === 'engine' ? 'Engine tune' : 'Reinforced shell') + ' <span>' + (p[k] ? 'INSTALLED' : '$' + UPGRADES[k]) + '</span>', false, p[k] || p.cash < UPGRADES[k]));
-    const fleet = carKeys.map(k => btn(k, CARS[k].label + ' <span>' + (k === p.selected ? 'SELECTED' : p.owned.includes(k) ? 'DEPLOY' : k !== 'compact' ? '$' + UPGRADES[k] : 'OWNED') + '</span>', false, k === p.selected || (k !== 'compact' && !p.owned.includes(k) && p.cash < UPGRADES[k])));
-    const percent = (n: number) => Math.round(n * 100) + '%';
-    const tuning = 'Sidecar rides only: engine +' + percent(GARAGE_TUNING.speed) + ' top speed, +' + percent(GARAGE_TUNING.acceleration)
-      + ' acceleration; shell ' + percent(GARAGE_TUNING.protection) + ' less damage.';
+    const upgrades = [
+      ['engine', 'Engine tune', '+' + percent(GARAGE_TUNE.speed) + ' top speed · +' + percent(GARAGE_TUNE.accel) + ' acceleration'],
+      ['armor', 'Reinforced shell', '−' + percent(GARAGE_TUNE.damage) + ' damage taken'],
+    ] as const;
+    const products = upgrades.map(([key, title, detail]) =>
+      btn(key, garageItem(title, detail, p[key] ? 'INSTALLED' : '$' + UPGRADES[key]), false, p[key] || p.cash < UPGRADES[key]));
+    const fleet = carKeys.map(key => {
+      const owned = p.owned.includes(key), selected = key === p.selected;
+      const price = key === 'compact' ? 0 : UPGRADES[key];
+      return btn(key, garageItem(CARS[key].label, CARS[key].handling, selected ? 'SELECTED' : owned ? 'STAGE' : '$' + price),
+        false, selected || (!owned && p.cash < price));
+    });
     overlay.innerHTML = panel('GARAGE / ' + regionAt(game.garage.x).name.toUpperCase(), game.garage.name + '.',
-      '$' + p.cash.toLocaleString('en-US') + ' cash · ' + tuning + (game.storageOK ? '' : '<br>Checkpoint kept in this tab only.'),
-      btn('service', 'Restock & stage ride', true) + btn('close', 'Back to street'), '<div class="garage-list">' + [...products, ...fleet].join('') + '</div>');
+      '$' + p.cash.toLocaleString('en-US') + ' cash · Upgrades apply to Sidecar rides.' + (game.storageOK ? '' : '<br>Checkpoint kept in this tab only.'),
+      btn('service', 'Restock & stage ' + CARS[p.selected].label, true) + btn('close', 'Back to street'), '<div class="garage-list">' + [...products, ...fleet].join('') + '</div>');
   }
   if (s === 'over') overlay.innerHTML = panel('TRANSMISSION LOST', 'Busted.', game && !game.storageOK
     ? 'Your checkpoint is kept in this tab only.' : 'The last safe checkpoint is still on tape.',
@@ -188,7 +203,8 @@ function updateHud(g: Game) {
   $('map-target').style.left = clamp(goal.x / LIMIT * 100, 0, 100) + '%';
   $('map-target').hidden = !g.current;
   const prompt = g.prompt();
-  $('interaction').textContent = prompt;
+  $('interaction').textContent = prompt?.label ?? '';
+  $('interaction').dataset.key = prompt?.key ?? '';
   $('interaction').hidden = !prompt;
   if (g.notice) {
     $('notice').dataset.kind = g.notice.kind;

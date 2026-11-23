@@ -1,4 +1,4 @@
-import { CARS, EXCHANGE_ROOF, GARAGES, GARAGE_TUNING, HIDEOUTS, JOBS, LIMIT, PLATFORMS, POINTS, ROAD, START, TOOLS, TUNE, UPGRADES, W, clamp, toward, type CarKind } from './config.ts';
+import { CARS, EXCHANGE_ROOF, GARAGES, GARAGE_TUNE, HIDEOUTS, JOBS, LIMIT, PLATFORMS, POINTS, ROAD, START, TOOLS, TUNE, UPGRADES, W, clamp, toward, type CarKind } from './config.ts';
 import { held, tap } from './input.ts';
 import { checkpointWriter, type Progress } from './save.ts';
 
@@ -15,6 +15,8 @@ const carAt = (x: number, kind: CarKind, owned = false, lane = 0): Vehicle =>
   ({ x, kind, owned, v: 0, lane, yLane: lane, dir: 1, hp: CARS[kind].health });
 const STARTER_KITE_X = 720;
 const LANE_SHIFT_SPEED = 5.4;
+const TRAFFIC_LANE_CLEARANCE = .53;
+const MAX_EXIT_SPEED = 28;
 const spots: [number, CarKind, number][] = [
   [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
   [4300, 'van', 1], [5110, 'compact', 1], [6080, 'coupe', 1], [7150, 'compact', 1],
@@ -41,6 +43,7 @@ export class Game {
   people: Person[] = [];
   dust: Dust[] = [];
   car: Vehicle | null = null;
+  private jobLoaner: Vehicle | null = null;
   job: JobStatus | null = null;
   notice: Signal | null = null;
   weapon = 0;
@@ -225,7 +228,7 @@ export class Game {
   private hurt(amount: number, direction: number) {
     if (this.damage > 0 || this.hide) return;
     if (this.car) {
-      this.car.hp -= amount * (this.progress.armor && this.car.personal ? 1 - GARAGE_TUNING.protection : 1);
+      this.car.hp -= amount * (this.progress.armor && this.car.personal ? 1 - GARAGE_TUNE.damage : 1);
       this.car.v *= .69;
       if (this.car.hp <= 0) {
         this.leave();
@@ -250,32 +253,56 @@ export class Game {
     const direction = Number(held('KeyD', 'ArrowRight')) - Number(held('KeyA', 'ArrowLeft'));
     const brake = held('Space');
     const top = this.topSpeed(c);
+    const fromX = c.x, fromLane = c.yLane, wasMoving = Math.abs(c.v) > 25;
     const up = tap('KeyW', 'ArrowUp'), down = tap('KeyS', 'ArrowDown');
     if (up || down) c.lane = clamp(c.lane + Number(down) - Number(up), -1, 1);
-    c.yLane = toward(c.yLane, c.lane, dt * LANE_SHIFT_SPEED);
+    c.yLane = toward(c.yLane, c.lane, dt * kind.laneSpeed);
     c.v = toward(c.v, brake ? 0 : direction * top, dt * (brake ? kind.grip
-      : !direction ? kind.coast : Math.sign(c.v) === -direction ? kind.grip : kind.accel * (tuned ? 1 + GARAGE_TUNING.acceleration : 1)));
-    if (Math.abs(c.v) > 9) c.dir = Math.sign(c.v);
+      : !direction ? kind.coast : Math.sign(c.v) === -direction ? kind.grip : kind.accel * (tuned ? 1 + GARAGE_TUNE.accel : 1)));
+    if (!brake && c.v * direction > 9) c.dir = direction;
     c.x += c.v * dt;
-    if (c.x < 22 || c.x > LIMIT - 24) {
+    this.driveCollisions(c, fromX, fromLane, dt);
+    if (this.car !== c) return;
+    const edge = Math.ceil(kind.width / 2) + 4;
+    if (c.x < edge || c.x > LIMIT - edge) {
+      c.x = clamp(c.x, edge, LIMIT - edge);
       if (Math.abs(c.v) > 110) this.hurt(13, -c.dir);
-      c.v *= -.28;
-      c.x = clamp(c.x, 22, LIMIT - 24);
+      c.v = 0;
+      if (this.car !== c) return;
     }
-    for (const t of this.traffic) {
-      if (delta(t.x, c.x) > (kind.width + CARS[t.kind].width) * .38 || delta(t.yLane, c.yLane) > .53) continue;
-      if (delta(t.v, c.v) > 105) {
-        this.sparks(c.x + c.dir * 24, ROAD + c.yLane * TUNE.laneOffset - 5, '#ffb575', 11);
-        this.hurt(10, -c.dir);
-        if (Math.abs(c.v) > 135 && this.intake <= 0 && !this.heat && this.index !== 3) this.reportCrime(TUNE.crime.theft);
-      }
-      t.lane = c.lane === 0 ? -t.dir : 0;
-      c.v = Math.sign(c.v) * Math.min(Math.abs(c.v), 145);
-    }
-    if ((brake || c.hp < 25 || Math.abs(c.v) > top * .7) && Math.random() < dt * 22)
+    if (((brake && wasMoving) || c.hp < 25 || Math.abs(c.v) > top * .7) && Math.random() < dt * 22)
       this.sparks(c.x - c.dir * 23, ROAD + c.yLane * TUNE.laneOffset, c.hp < 25 ? '#3c3444' : '#b89b8d', 1);
     if (this.job && this.index === 0 && c === this.starterKite)
       this.job.drove ||= delta(c.x, this.job.driveStart) > 90;
+  }
+
+  private driveCollisions(c: Vehicle, fromX: number, fromLane: number, dt: number) {
+    const width = CARS[c.kind].width;
+    for (const cars of [this.traffic, this.cars]) for (const t of cars) {
+      if (c === t) continue;
+      const yields = cars === this.traffic;
+      const gap = (width + CARS[t.kind].width) / 2;
+      const otherX = t.x + t.v * dt;
+      if (delta(otherX, c.x) >= gap || delta(t.yLane, c.yLane) > TRAFFIC_LANE_CLEARANCE) continue;
+      if (delta(t.x, fromX) < gap && delta(t.yLane, fromLane) > TRAFFIC_LANE_CLEARANCE) {
+        c.yLane = fromLane;
+        c.lane = Math.round(fromLane);
+        continue;
+      }
+      if (yields) t.lane = Math.round(c.yLane) === 0 ? -t.dir : 0;
+      const side = Math.sign(fromX - t.x);
+      const closing = (t.v - c.v) * side;
+      if (closing <= 0) continue;
+      c.x = otherX + side * gap;
+      const hardImpact = closing > 105;
+      if (hardImpact && this.damage === 0) {
+        this.sparks(c.x - side * width / 2, ROAD + c.yLane * TUNE.laneOffset - 5, '#ffb575', 11);
+        this.hurt(10, side);
+        if (this.car !== c) return;
+        if (yields && Math.abs(c.v) > 135 && this.intake <= 0 && !this.heat && this.index !== 3) this.reportCrime(TUNE.crime.theft);
+      }
+      c.v = t.v + (hardImpact ? side * closing * .2 : 0);
+    }
   }
 
   private walk(dt: number) {
@@ -366,6 +393,8 @@ export class Game {
     this.body.x = clamp(c.x - c.dir * 27, 15, LIMIT - 15);
     this.body.y = ROAD;
     this.body.vx = this.body.vy = 0;
+    this.body.ground = true;
+    this.jumpWindow = this.groundWindow = 0;
     this.body.dir = c.dir;
     c.v = 0;
     this.car = null;
@@ -380,7 +409,7 @@ export class Game {
   }
 
   private topSpeed(c: Vehicle) {
-    return CARS[c.kind].speed * (c.personal && this.progress.engine ? 1 + GARAGE_TUNING.speed : 1);
+    return CARS[c.kind].speed * (c.personal && this.progress.engine ? 1 + GARAGE_TUNE.speed : 1);
   }
 
   private missionRide() {
@@ -403,15 +432,17 @@ export class Game {
     if (this.index === 1 || this.index === 3) {
       const start = this.current.location.x + 26;
       const ride = this.missionRide();
+      this.cars = this.cars.filter(c => c !== this.jobLoaner);
+      this.jobLoaner = null;
       if (ride) {
-        ride.x = start;
+        ride.x = this.missionSpawn(start, ride.kind, ride);
         ride.v = 0;
         ride.dir = 1;
         ride.lane = ride.yLane = 0;
       } else {
         this.leave();
-        this.cars = this.cars.filter(c => !c.owned || c.personal);
-        const loan = carAt(start, 'coupe', true);
+        const loan = carAt(this.missionSpawn(start, 'coupe'), 'coupe', true);
+        this.jobLoaner = loan;
         this.cars.push(loan);
         this.board(loan, false);
       }
@@ -433,12 +464,27 @@ export class Game {
     }
   }
 
+  private missionSpawn(x: number, kind: CarKind, ride?: Vehicle) {
+    const blocked = [...this.cars, ...this.traffic]
+      .filter(c => c !== ride && (c.lane === 0 || Math.abs(c.yLane) <= TRAFFIC_LANE_CLEARANCE))
+      .map(c => {
+        const clearance = (CARS[c.kind].width + CARS[kind].width) / 2 + Math.abs(c.v) * .35 + 2;
+        return [c.x - clearance, c.x + clearance] as const;
+      })
+      .sort(([leftA], [leftB]) => leftA - leftB);
+    for (const [left, right] of blocked) {
+      if (x >= left && x < right) x = right;
+    }
+    return x;
+  }
+
   private finish() {
     if (!this.current) return;
     const { title, reward } = this.current;
     this.progress.cash += reward;
     this.progress.completed += 1;
     this.job = null;
+    this.jobLoaner = null;
     this.checkpoint();
     const garageHint = this.index === 2 ? ' · Sidecar Outpost is east of Bluehour' : '';
     this.say(this.current ? 'Job cleared · ' + title : 'The coast is yours',
@@ -475,7 +521,7 @@ export class Game {
       .sort((a, b) => delta(a.x, this.x) - delta(b.x, this.x))[0];
   }
 
-  private interaction(): { label: string; run: () => void } | null {
+  private interaction(): { label: string; run?: () => void } | null {
     const near = (x: number, distance = 72) => delta(this.x, x) < distance;
     const hideout = this.nearestRefuge;
     if (this.hide) {
@@ -504,7 +550,9 @@ export class Game {
       if (this.index === 4 && this.job.beacon && near(POINTS.port.x))
         return { label: 'Return the beacon', run: () => this.finish() };
     }
-    if (this.car) return { label: 'Exit ' + CARS[this.car.kind].label, run: () => this.leave() };
+    if (this.car) return Math.abs(this.car.v) > MAX_EXIT_SPEED
+      ? { label: 'Brake to exit' }
+      : { label: 'Exit ' + CARS[this.car.kind].label, run: () => this.leave() };
     const garage = garageNear(this.x);
     if (!this.heat && garage) return { label: 'Open ' + garage.name, run: () => { this.garage = garage; this.sound('door'); } };
     const c = this.nearestCar();
@@ -514,7 +562,10 @@ export class Game {
     return null;
   }
 
-  prompt() { return this.interaction()?.label ?? ''; }
+  prompt() {
+    const interaction = this.interaction();
+    return interaction && { label: interaction.label, key: interaction.run ? 'E' : 'Space' };
+  }
 
   purchase(key: Purchase) {
     if (!this.garage) return;
@@ -567,7 +618,7 @@ export class Game {
     this.flash = Math.max(0, this.flash - dt);
     this.shake *= Math.exp(-dt * 12);
     if (this.notice && (this.notice.age -= dt) <= 0) this.notice = null;
-    if (tap('KeyE')) this.interaction()?.run();
+    if (tap('KeyE')) this.interaction()?.run?.();
     if (this.garage || this.lost) return;
     if (!this.hide) {
       if (this.car) this.drive(dt);

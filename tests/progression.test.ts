@@ -43,7 +43,7 @@ test('starting a timed job checkpoints its contact, not the loaner or pursuit', 
   assert.equal(retry.heat, 0);
   assert.equal(retry.car, null);
   assert.equal(retry.job, null);
-  assert.equal(retry.prompt(), 'Talk to Mara');
+  assert.equal(retry.prompt()?.label, 'Talk to Mara');
 });
 
 test('a stale tab cannot replace another tab’s purchases or payout at job acceptance or after retry', () => {
@@ -69,7 +69,7 @@ test('Dead Air gates the cartridge to the roof and lets the player wait out the 
   press(game, 'KeyE');
   game.body.x = POINTS.exchange.x;
   assert.equal(game.body.y, ROAD);
-  assert.notEqual(game.prompt(), 'Take the cartridge');
+  assert.notEqual(game.prompt()?.label, 'Take the cartridge');
   press(game, 'KeyE');
   assert.equal(game.job?.beacon, false);
   game.reportCrime(2);
@@ -78,7 +78,7 @@ test('Dead Air gates the cartridge to the roof and lets the player wait out the 
   assert.equal(game.search, 0);
   game.body.y = EXCHANGE_ROOF.y;
   game.body.vy = 0;
-  assert.equal(game.prompt(), 'Take the cartridge');
+  assert.equal(game.prompt()?.label, 'Take the cartridge');
   press(game, 'KeyE');
   assert.equal(game.job?.beacon, true);
   assert.match(game.goal().text, /Stay on the roof/);
@@ -112,9 +112,12 @@ test('an outpost tune saves and its staged ride is used at the race', () => {
   press(resumed, 'KeyE');
   assert.equal(resumed.car, ride);
   ride.x = POINTS.race.x;
-  assert.match(resumed.prompt(), /race your Kite Compact/);
+  assert.match(resumed.prompt()?.label ?? '', /race your Kite Compact/);
+  const launch = POINTS.race.x + 26;
+  resumed.cars.push({ ...ride, personal: undefined, x: launch, lane: 0, yLane: 0 });
   press(resumed, 'KeyE');
   assert.equal(resumed.car, ride);
+  assert.ok(ride.x - launch >= CARS.compact.width);
   press(resumed, 'KeyD', 2);
   assert.ok(ride.v > CARS.compact.speed);
 });
@@ -127,7 +130,7 @@ test('Roux has a free loaner for players without a race-ready ride', () => {
   press(game, 'KeyE');
   assert.equal(game.car, van);
   van.x = POINTS.race.x;
-  assert.match(game.prompt(), /take the Sable loaner/);
+  assert.match(game.prompt()?.label ?? '', /take the Sable loaner/);
   press(game, 'KeyE');
   assert.equal(game.car?.kind, 'coupe');
   assert.equal(game.car?.personal, undefined);

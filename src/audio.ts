@@ -78,6 +78,14 @@ export class AudioBed {
     if (name === 'step') this.tone(94, .068, 'triangle', .02, 0, 48);
     if (name === 'door') this.tone(95, .1, 'triangle', .12, 0, 48);
     if (name === 'hit') this.tone(145, .15, 'square', .05, 0, 55);
+    if (name === 'swing') this.tone(122, .1, 'triangle', .06, 0, 68);
+    if (name === 'shot') this.tone(143, .085, 'square', .09, 0, 36);
+    if (name === 'blast') this.tone(104, .21, 'square', .12, 0, 27);
+    if (name === 'empty' || name === 'ready') this.tone(290, .055, 'triangle', .06, 0, 188);
+    if (name === 'reload') {
+      this.tone(278, .075, 'triangle', .085, 0, 220);
+      this.tone(392, .07, 'triangle', .06, .18, 285);
+    }
     if (name === 'alert' || name === 'bad') {
       this.tone(388, .2, 'triangle', .13, 0, 215);
       this.tone(245, .3, 'triangle', .09, .1, 146);

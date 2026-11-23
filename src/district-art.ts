@@ -1,4 +1,4 @@
-import { sky, horizon, ground, human } from './art.ts';
+import { sky, horizon, ground } from './art.ts';
 import { W } from './config.ts';
 import { blocks, ladders, passages, roofs, STREET, CELLAR, type Surface } from './district.ts';
 import type { Motion } from './traversal.ts';
@@ -110,6 +110,5 @@ export function renderDistrict(c: Ctx, body: Motion, camera: number, time: numbe
     lettering(c, name.toUpperCase(), x, 380, color, 12);
   }
   foreground?.(c);
-  human(c, body.x, body.y, body.dir, body.stride, '#dd946e', true, false, !body.grounded && !body.climb);
   c.restore();
 }

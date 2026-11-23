@@ -1,9 +1,10 @@
 import './sandbox.css';
 import { AudioBed } from './audio.ts';
+import type { WeaponId } from './combat.ts';
 import { H, W } from './config.ts';
-import { renderDistrict } from './district-art.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
+import { renderSandbox } from './sandbox-art.ts';
 import { loadSettings, storeSettings } from './save.ts';
 
 const app = document.querySelector<HTMLElement>('#app')!;
@@ -21,6 +22,8 @@ app.innerHTML = `
           <dl><div><dt>Walk / sprint</dt><dd>A D or ← → / Shift</dd></div>
           <div><dt>Fire escapes</dt><dd>W S or ↑ ↓</dd></div>
           <div><dt>Jump / interact</dt><dd>Space / E</dd></div>
+          <div><dt>Attack / aim / reload</dt><dd>F / hold Q (+ W S) / R</dd></div>
+          <div><dt>Weapon slots</dt><dd>1–6</dd></div>
           <div><dt>Pause</dt><dd>Esc</dd></div></dl>
           <label>Volume <input id="volume" type="range" min="0" max="1" step=".05"></label>
           <label><input id="mute" type="checkbox"> Mute</label>
@@ -29,7 +32,7 @@ app.innerHTML = `
       </section>
     </div>
   </section>
-  <footer class="dock"><strong id="block">Lantern Row</strong><span id="prompt"></span><span class="edition">CROWNWATER DISTRICT</span></footer>`;
+  <footer class="dock"><strong id="block">Lantern Row</strong><span id="prompt"></span><span id="equipment"></span></footer>`;
 const get = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = app.querySelector('canvas')!;
 const context = canvas.getContext('2d', { alpha: false })!;
@@ -82,16 +85,30 @@ function frame(now: number) {
   const dt = Math.min(.035, (now - previous) / 1000);
   previous = now;
   if (started && tap('Escape')) setRunning(!running);
-  if (running) game.step(dt, {
-    side: Number(held('KeyD', 'ArrowRight')) - Number(held('KeyA', 'ArrowLeft')),
-    vertical: Number(held('KeyS', 'ArrowDown')) - Number(held('KeyW', 'ArrowUp')),
-    jump: tap('Space'), fast: held('ShiftLeft', 'ShiftRight'), use: tap('KeyE'),
-  });
+  if (running) {
+    const vertical = Number(held('KeyS', 'ArrowDown')) - Number(held('KeyW', 'ArrowUp'));
+    const slot = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].findIndex(key => tap(key));
+    game.step(dt, {
+      side: Number(held('KeyD', 'ArrowRight')) - Number(held('KeyA', 'ArrowLeft')),
+      vertical, jump: tap('Space'), fast: held('ShiftLeft', 'ShiftRight'), use: tap('KeyE'),
+      aim: held('KeyQ'), incline: vertical, reload: tap('KeyR'), fire: held('KeyF') || tap('KeyF'),
+      slot: slot < 0 ? undefined : slot as WeaponId,
+    });
+    if (!game.hp) {
+      setRunning(false);
+      get('menu-title').textContent = 'Knocked out';
+      play.textContent = 'Restart';
+      started = false;
+      game = new Sandbox(name => audio.cue(name));
+    }
+  }
   clearEdges();
   audio.step(0, 0, false, running);
-  renderDistrict(context, game.body, game.camera, started ? game.time : now / 1000, settings.reduced);
+  renderSandbox(context, game, started ? game.time : now / 1000, settings.reduced);
   label('block', game.block.name);
   label('prompt', started ? game.prompt : 'No jobs. No fixed route.');
+  const { gun, ammo, loading } = game.armory;
+  label('equipment', gun.mag ? `${gun.name} · ${loading ? 'Reloading' : ammo.rounds + ' / ' + ammo.reserve}` : gun.name);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

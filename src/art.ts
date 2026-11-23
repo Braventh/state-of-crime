@@ -234,7 +234,7 @@ function landmark(c: Ctx, x: number, title: string, shade: string) {
   box(c, shade, x - w / 2, 377, w, 1);
   type(c, title, x, 390, shade, 10, true);
 }
-export function human(c: Ctx, x: number, y: number, dir: number, gait: number, coat: string, player: boolean, hit = false, airborne = false) {
+function human(c: Ctx, x: number, y: number, dir: number, gait: number, coat: string, player: boolean, hit = false, airborne = false) {
   c.save(); c.translate(Math.round(x), Math.round(y)); c.scale(dir, 1);
   const stride = airborne ? 3 : Math.round(Math.sin(gait) * 5);
   const lift = airborne ? 4 : Math.round(Math.abs(Math.sin(gait)) * 2);

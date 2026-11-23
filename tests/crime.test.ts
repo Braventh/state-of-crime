@@ -118,6 +118,25 @@ test('Motorworks keeps E for the shop and lets X re-enter a parked ride before r
   assert.equal(car.color, paint.value);
 });
 
+test('Motorworks re-enters the car just exited instead of a closer car of the same model', () => {
+  const game = new Sandbox();
+  const garage = businesses.find(shop => shop.id === 'paint')!;
+  const car = makeRide('just-exited', garage.x, 'compact');
+  const nearer = makeRide('nearer', garage.x - 34, 'compact', 0);
+  car.taken = nearer.taken = true;
+  game.rides = [nearer, car];
+  game.ride = car;
+  game.body = bodyAt(car.x);
+  game.step(1 / 60, { ...neutral, exit: true });
+  game.step(1 / 60, { ...neutral, exit: true });
+  assert.equal(game.ride, car);
+  game.step(1 / 60, { ...neutral, use: true });
+  const paint = shopStock.paint[0];
+  assert.equal(game.buy(paint), '');
+  assert.equal(car.color, paint.value);
+  assert.notEqual(nearer.color, paint.value);
+});
+
 test('Stealing an inbound commuter does not crash it at either driving boundary', () => {
   for (const direction of [1, -1]) {
     const game = new Sandbox();

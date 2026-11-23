@@ -31,6 +31,7 @@ export class Sandbox {
   police = new Police();
   rides = fleet();
   ride: Ride | null = null;
+  private lastExitedRide?: Ride;
   armory = new Armory();
   actors = streetLife();
   drops: Drop[] = [
@@ -62,9 +63,12 @@ export class Sandbox {
     let min = 52;
     for (const ride of this.rides) {
       const distance = Math.abs(ride.x - this.body.x);
-      if ((takenOnly && !ride.taken) || ride.hp <= 0 || Math.abs(ride.v) > 145 || distance >= min) continue;
-      min = distance;
-      nearest = ride;
+      if ((takenOnly && !ride.taken) || ride.hp <= 0 || Math.abs(ride.v) > 145 || distance >= 52) continue;
+      if (takenOnly && ride === this.lastExitedRide) return ride;
+      if (distance < min) {
+        min = distance;
+        nearest = ride;
+      }
     }
     return nearest;
   }
@@ -319,6 +323,7 @@ export class Sandbox {
       car.v = 0;
       this.body = bodyAt(clamp(car.x - car.dir * 34, 22, DISTRICT_WIDTH - 22));
       this.body.dir = car.dir;
+      this.lastExitedRide = car;
       this.ride = null;
       this.sound('door');
     }

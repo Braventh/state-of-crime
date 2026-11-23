@@ -53,3 +53,63 @@ test('Roof geometry and covered passages block shots; equipment pickup equips th
   assert.equal(game.body.y, STREET);
   assert.equal(game.armory.step(.016, { fire: true, aim: true, incline: 1 }, game.body, [actor], () => {})?.target, undefined);
 });
+
+test('Weapon readout shows the hotkey, a usable reload hint and ammo during an interrupted reload', () => {
+  const armory = new Armory();
+  const body = bodyAt(460);
+  const sound = () => {};
+  assert.equal(armory.readout, '[1] Fists · F to attack');
+  armory.supply(2);
+  for (let i = 0; i < 8; i++) armory.step(.31, { fire: true }, body, [], sound);
+  assert.equal(armory.readout, '[3] Pistol · 0 / 24 · R to reload');
+  armory.step(.016, { reload: true }, body, [], sound);
+  assert.equal(armory.readout, '[3] Pistol · 0 / 24 · Reloading');
+  armory.step(.016, { slot: 1 }, body, [], sound);
+  assert.equal(armory.readout, '[3] Pistol · 0 / 24 · Reloading');
+  armory.step(.016, { slot: 0 }, body, [], sound);
+  armory.step(.9, { slot: 2 }, body, [], sound);
+  assert.equal(armory.readout, '[3] Pistol · 0 / 24 · R to reload');
+  armory.ammo.reserve = 0;
+  assert.equal(armory.readout, '[3] Pistol · 0 / 0 · Out of ammo');
+});
+
+test('Loadout feedback distinguishes locked slots, new weapons and duplicate ammo pickups', () => {
+  const game = new Sandbox();
+  game.body = bodyAt(1165);
+  game.step(.016, { side: 0, vertical: 0, slot: 2 });
+  assert.equal(game.armory.slot, 0);
+  assert.equal(game.notice, 'Slot 3 · Pistol not owned');
+  assert.equal(game.prompt, 'E  ·  Pick up Pistol');
+  game.step(.016, { side: 0, vertical: 0, use: true });
+  assert.equal(game.notice, 'Pistol equipped · Slot 3');
+  game.armory.ammo.reserve = 90;
+  game.step(.016, { side: 0, vertical: 0, slot: 0 });
+  game.drops.push({ x: 1165, y: STREET, weapon: 2, covered: false, cash: 31 });
+  assert.equal(game.prompt, 'E  ·  Pick up Pistol ammo');
+  game.step(.016, { side: 0, vertical: 0, use: true });
+  assert.equal(game.notice, 'Pistol · +6 reserve · +$31');
+  assert.equal(game.armory.slot, 0);
+  assert.equal(game.armory.stock[2]?.reserve, 96);
+  game.drops.push({ x: 1165, y: STREET, weapon: 2, covered: false });
+  game.step(.016, { side: 0, vertical: 0, use: true });
+  assert.equal(game.notice, 'Pistol reserve full');
+});
+
+test('Only landed attacks show a temporary hit or knockout confirmation', () => {
+  const armory = new Armory();
+  const body = bodyAt(460);
+  const enemy = actorAt('enemy', 492, 1, 'gang');
+  const sound = () => {};
+  armory.step(.32, { fire: true }, body, [], sound);
+  assert.equal(armory.impact, null);
+  armory.step(.32, { fire: true }, body, [enemy], sound);
+  assert.equal(armory.impact?.target, enemy);
+  assert.equal(armory.impact?.killed, false);
+  armory.step(.32, { fire: true }, body, [], sound);
+  assert.equal(armory.impact?.target, enemy);
+  enemy.hp = 23;
+  armory.step(.32, { fire: true }, body, [enemy], sound);
+  assert.equal(armory.impact?.killed, true);
+  armory.step(.65, {}, body, [enemy], sound);
+  assert.equal(armory.impact, null);
+});

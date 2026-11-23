@@ -8,12 +8,13 @@ export const tap = (...codes: string[]) => codes.some(code => edges.has(code));
 export const clearEdges = () => edges.clear();
 export function resetInput() { keys.clear(); edges.clear(); }
 
-export function startInput(engaged: () => boolean, nativeControl?: EventTarget) {
+export function startInput(engaged: () => boolean) {
   window.addEventListener('keydown', e => {
     if (!gameKeys.has(e.code)) return;
-    if (e.code !== 'Escape' && e.target === nativeControl) return;
-    if (engaged() && !(e.target instanceof HTMLInputElement)) e.preventDefault();
-    if (!e.repeat && !(e.target instanceof HTMLInputElement)) edges.add(e.code);
+    const control = typeof Element !== 'undefined' && e.target instanceof Element && e.target.closest('button, input, summary');
+    if (control && e.code !== 'Escape') return;
+    if (engaged() && !control) e.preventDefault();
+    if (!e.repeat) edges.add(e.code);
     keys.add(e.code);
   });
   window.addEventListener('keyup', e => keys.delete(e.code));

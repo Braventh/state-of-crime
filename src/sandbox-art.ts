@@ -53,7 +53,7 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       form(context, '#f9d195', x - 8, y - 9 + bob, x + 9, y - 9 + bob, x + 7, y - 6 + bob, x - 9, y - 6 + bob);
       if (game.pickup === drop) lettering(context, drop.weapon === undefined ? 'CASH' : weapons[drop.weapon].name.toUpperCase(), x, y - 19, '#ffe4ae', 9);
     }
-    const { trace, pose, aiming, slope, slot, loading } = game.armory;
+    const { trace, impact, pose, aiming, slope, slot, loading } = game.armory;
     if (trace) {
       context.strokeStyle = '#ffd180';
       context.lineWidth = 1.6;
@@ -71,6 +71,12 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
         form(context, '#211c29', x - 8, y - 79, x + 8, y - 79, x, y - 69);
         form(context, '#ffd6a2', x - 5, y - 77, x + 5, y - 77, x, y - 71);
       }
+    }
+    if (!game.ride && impact && impact.target.covered === game.body.covered && visible(impact.target.x)) {
+      const { x, y } = impact.target;
+      context.fillStyle = '#272333';
+      context.fillRect(x - 18, y - 79, 36, 13);
+      lettering(context, impact.killed ? 'DOWN' : 'HIT', x, y - 69, impact.killed ? '#f2a48f' : '#ffe4ae', 10);
     }
   });
 }

@@ -40,19 +40,30 @@ export class Armory {
   aiming = false;
   slope = 0;
   trace: Trace | null = null;
+  impact: { target: Actor; killed: boolean; life: number } | null = null;
 
   get gun() { return weapons[this.slot]; }
   get ammo() { return this.stock[this.slot]!; }
 
+  get readout() {
+    const { gun, ammo } = this;
+    const name = `[${this.slot + 1}] ${gun.name}`;
+    if (!gun.mag) return `${name} · F to attack`;
+    const status = this.loading ? ' · Reloading' : ammo.rounds ? '' : ammo.reserve ? ' · R to reload' : ' · Out of ammo';
+    return `${name} · ${ammo.rounds} / ${ammo.reserve}${status}`;
+  }
+
   supply(id: WeaponId) {
     const gun = weapons[id];
     const existing = this.stock[id];
-    if (existing) existing.reserve = Math.min(gun.refill * 4, existing.reserve + gun.refill);
-    else {
-      this.stock[id] = { rounds: gun.mag, reserve: gun.refill };
-      this.slot = id;
-      this.loading = 0;
+    if (existing) {
+      const reserve = existing.reserve;
+      existing.reserve = Math.min(gun.refill * 4, reserve + gun.refill);
+      return existing.reserve - reserve;
     }
+    this.stock[id] = { rounds: gun.mag, reserve: gun.refill };
+    this.slot = id;
+    this.loading = 0;
   }
 
   step(dt: number, input: AttackInput, body: { x: number; y: number; dir: number; covered: boolean },
@@ -60,6 +71,7 @@ export class Armory {
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.pose = Math.max(0, this.pose - dt);
     if (this.trace && (this.trace.life -= dt) <= 0) this.trace = null;
+    if (this.impact && (this.impact.life -= dt) <= 0) this.impact = null;
     if (input.slot !== undefined && input.slot !== this.slot && this.stock[input.slot]) {
       this.slot = input.slot;
       this.loading = 0;
@@ -118,6 +130,7 @@ export class Armory {
       target.hp = Math.max(0, target.hp - damage);
       target.hit = .23;
       if (!target.hp) target.down = .01;
+      this.impact = { target, killed: target.hp === 0, life: .65 };
     }
     return { target, killed: target?.hp === 0, loud: gun.mag > 0 };
   }

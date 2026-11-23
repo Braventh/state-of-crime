@@ -53,7 +53,7 @@ dialog::backdrop { background: #171521a8; }
 @media (max-width: 650px) { .mast small { display: none; } }
 @media (max-width: 480px) { .dock { display: grid; grid-template-columns: auto auto; gap: .2rem .75rem; } .dock #prompt { text-align: right; } .dock #status { text-align: right; } }
 @media (max-height: 390px) {
-  #app { width: min(100%, 1280px, calc((100dvh - 108px) * 16 / 9)); }
+  #app { width: min(100%, 1280px, calc((100dvh - 108px) * 16 / 9)); min-width: 0; }
   .mast, .dock { min-height: 28px; padding-block: .22rem; }
   .dock { display: grid; grid-template-columns: 1fr 1fr; gap: .18rem .6rem; }
   .dock #prompt, .dock #status { text-align: right; }

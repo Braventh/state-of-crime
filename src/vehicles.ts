@@ -48,7 +48,11 @@ export function steer(ride: Ride, road: Ride[], input: DriveInput, dt: number, e
     const closing = (other.v - ride.v) * direction;
     if (closing <= 0) continue;
     ride.x = other.x + direction * gap;
-    ride.v = other.v + (closing > 95 ? direction * closing * .13 : 0);
+    if (other.v * direction > 0 && ride.v * direction <= 0) {
+      ride.v = other.v = 0;
+    } else {
+      ride.v = other.v + (closing > 95 ? direction * closing * .13 : 0);
+    }
     if (closing > 95) {
       impact = Math.max(impact, closing);
       other.hp = Math.max(0, other.hp - closing * .055);

@@ -54,13 +54,15 @@ export class Sandbox {
   }
   get roadside() { return !this.body.covered && this.body.grounded && this.body.y === STREET; }
   get business() { return this.roadside ? businesses.find(shop => Math.abs(shop.x - this.body.x) < 36) : undefined; }
-  get availableRide() {
+  get availableRide() { return this.nearbyRide(); }
+  private get motorworksRide() { return this.business?.id === 'paint' ? this.nearbyRide(true) : undefined; }
+  private nearbyRide(takenOnly = false) {
     if (!this.roadside) return;
     let nearest: Ride | undefined;
     let min = 52;
     for (const ride of this.rides) {
       const distance = Math.abs(ride.x - this.body.x);
-      if (ride.hp <= 0 || Math.abs(ride.v) > 145 || distance >= min) continue;
+      if ((takenOnly && !ride.taken) || ride.hp <= 0 || Math.abs(ride.v) > 145 || distance >= min) continue;
       min = distance;
       nearest = ride;
     }
@@ -179,15 +181,19 @@ export class Sandbox {
   }
 
   get prompt() {
-    if (this.ride) return Math.abs(this.ride.v) > 28 ? 'Space  ·  Brake before exiting'
-      : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'E  ·  Exit vehicle';
+    if (this.ride) return Math.abs(this.ride.v) > 28 ? 'W / S  ·  Change lanes / Space  ·  Brake to exit'
+      : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'W / S  ·  Change lanes / E or X  ·  Exit';
     const pickup = this.pickup;
     if (pickup) return 'E  ·  Pick up gear';
     const door = closeDoor(this.body);
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
-    if (this.business) return `E  ·  ${this.business.name}${this.robberyTarget?.kind === 'shopRobbery' ? ' / G  ·  Rob' : ''}`;
+    if (this.business) {
+      const parked = this.motorworksRide;
+      if (parked) return `E  ·  Prism Motorworks / X  ·  Enter ${CARS[parked.kind].label}`;
+      return `E  ·  ${this.business.name}${this.robberyTarget?.kind === 'shopRobbery' ? ' / G  ·  Rob' : ''}`;
+    }
     const ride = this.availableRide;
-    if (ride) return `E  ·  ${ride.taken ? 'Enter' : 'Steal'} ${CARS[ride.kind].label}`;
+    if (ride) return `E  ·  ${ride.taken ? 'Enter' : ride.traffic ? 'Carjack' : 'Steal'} ${CARS[ride.kind].label}`;
     if (this.robberyTarget) return `G  ·  ${this.robberyTarget.kind === 'shopRobbery' ? 'Rob ' + this.robberyTarget.name : 'Demand cash'}`;
     if (!this.body.covered && ladders.some(l => Math.abs(l.x - this.body.x) < 24 && this.body.y >= l.high - 5 && this.body.y <= l.low + 2))
       return 'W / S  ·  Fire escape';
@@ -237,7 +243,7 @@ export class Sandbox {
 
   private onFoot(dt: number, input: SandboxInput) {
     const pickup = input.use && this.pickup;
-    const car = input.use && !pickup && !closeDoor(this.body) && this.availableRide;
+    const car = !this.pickup && !closeDoor(this.body) && (input.use ? this.availableRide : input.exit ? this.motorworksRide : undefined);
     if (car) {
       this.ride = car;
       if (!car.taken) {

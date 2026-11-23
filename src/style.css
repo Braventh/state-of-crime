@@ -126,6 +126,6 @@ kbd { background: #4d364d; padding: .06em .34em; border: 1px solid #855c72; colo
   .buttons { gap: 6px; }
   .buttons button, .garage-list button { font-size: 12px; min-height: 44px; padding: 6px 9px; }
   .garage-list { grid-template-columns: 1fr; }
-  .garage-list button span { font-size: 10px; }
+  .garage-list button > span:last-child { font-size: 10px; }
   .pause-button { top: max(19%, 34px); min-width: 44px; min-height: 44px; font-size: 14px; }
 }

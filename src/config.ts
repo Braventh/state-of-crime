@@ -51,9 +51,9 @@ export const TUNE = {
   laneOffset: 24, raceTime: 13, getawayTime: 58,
 };
 export const TOOLS = [
-  { name: 'Palm strike', range: 48, damage: 30, cooldown: .35, color: '#ffdb9d' },
-  { name: 'Arc caster', range: 175, damage: 37, cooldown: .47, color: '#9df4df' },
-  { name: 'Signal burst', range: 111, damage: 50, cooldown: .69, color: '#ff97b7' },
+  { name: 'Palm strike', range: 48, vertical: 27, damage: 30, cooldown: .35, color: '#ffdb9d' },
+  { name: 'Arc caster', range: 175, vertical: 75, damage: 37, cooldown: .47, color: '#9df4df' },
+  { name: 'Signal burst', range: 111, vertical: 56, damage: 50, cooldown: .69, color: '#ff97b7' },
 ];
 export const JOBS = [
   { title: 'First Light', contact: 'Mara', location: POINTS.contact, reward: 300, line: 'Borrow the orange Kite outside. Run this sealed film canister to Tidelane.' },

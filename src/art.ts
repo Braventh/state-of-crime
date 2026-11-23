@@ -1,4 +1,4 @@
-import { CARS, H, LIMIT, PLATFORMS, POINTS, ROAD, TUNE, W, clamp, regionAt } from './config.ts';
+import { CARS, H, LIMIT, PLATFORMS, POINTS, ROAD, TOOLS, TUNE, W, clamp, regionAt } from './config.ts';
 import type { Game, Vehicle } from './game.ts';
 
 type Ctx = CanvasRenderingContext2D;
@@ -312,7 +312,7 @@ function marker(c: Ctx, x: number, y: number, clock: number, name: string, color
   shape(c, color, x - 5, yy - 1, x + 5, yy - 1, x, yy + 5);
 }
 export function render(c: Ctx, now: number, game: Game | null, reduced: boolean) {
-  const clock = reduced ? Math.floor(now) : game?.clock ?? now;
+  const clock = game?.clock ?? (reduced ? 0 : now);
   let cam = game ? game.camera : 342 + Math.sin(clock * .14) * 75;
   cam = Math.round(cam + (game && !reduced ? Math.sin(clock * 113) * game.shake : 0));
   sky(c, cam, clock);
@@ -370,7 +370,7 @@ export function render(c: Ctx, now: number, game: Game | null, reduced: boolean)
       if (game.flash > 0) {
         const x = p.x - cam + p.dir * 13, y = p.y - 25;
         if (game.weapon) {
-          const len = (game.weapon === 1 ? 94 : 61) * p.dir;
+          const len = (TOOLS[game.weapon].range - 13) * p.dir;
           line(c, game.weapon === 1 ? '#b4fff0' : '#ffb5c5', 2, x, y, x + len * .26, y - 5, x + len * .48, y + 2, x + len, y - 7);
           orb(c, x, y, 5, '#ffdeb6');
         } else line(c, '#ffd4a6', 2, x, y - 8, x + p.dir * 18, y - 3, x + p.dir * 24, y + 7);

@@ -6,7 +6,7 @@ export interface Vehicle { x: number; v: number; lane: number; yLane: number; di
 export interface Person { x: number; home: number; y: number; dir: number; hp: number; hit: number; shot: number; hostile: boolean; coat: string }
 export interface Unit { x: number; v: number; lane: number; dir: number; heavy: boolean; target: number }
 export interface Dust { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
-type Action = 'confirm' | 'door' | 'alert' | 'hit' | 'reward' | 'jump' | 'bad';
+type Action = 'confirm' | 'door' | 'alert' | 'hit' | 'reward' | 'jump' | 'step' | 'bad';
 type JobStatus = { time: number; drove: boolean; beacon: boolean; rival: number };
 interface Signal { title: string; detail: string; kind: 'good' | 'bad' | 'info'; age: number }
 export type Purchase = keyof typeof UPGRADES | 'compact';
@@ -52,12 +52,17 @@ export class Game {
   garage = false;
   lost = false;
   storageOK = true;
+  progress: Progress;
+  private sound: (action: Action) => void;
 
-  constructor(public progress: Progress, private sound: (action: Action) => void) {
+  constructor(progress: Progress, sound: (action: Action) => void) {
+    this.progress = progress;
+    this.sound = sound;
     this.body.x = progress.x;
     this.camera = clamp(progress.x - W * .4, 0, LIMIT - W);
     for (let i = 0; i < 35; i++) {
       const x = 265 + i * 328 + (i % 5) * 39;
+      if (x >= 9160 && x <= 10470) continue;
       this.people.push({ x, home: x, y: ROAD, dir: i % 2 ? 1 : -1, hp: 100, hit: 0, shot: 0,
         hostile: false, coat: coats[i % coats.length] });
     }
@@ -72,6 +77,7 @@ export class Game {
   get x() { return this.car?.x ?? this.body.x; }
   get index() { return this.progress.completed; }
   get current() { return JOBS[this.index]; }
+  get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
 
   goal() {
     if (!this.current) return { ...POINTS.garage, text: 'All five jobs cleared. The coast is yours.' };
@@ -87,7 +93,9 @@ export class Game {
       case 3: return { ...POINTS.finish, text: 'Beat Roux to the far toll · ' + Math.max(0, this.job.time).toFixed(1) + 's' };
       default: return this.job.beacon
         ? { ...POINTS.port, text: 'Return Beacon 06 to Inez · E' }
-        : { ...POINTS.freight, text: this.people.some(p => p.hostile && p.hp > 0) ? 'Clear the sentries · climb the freight stacks' : 'Climb the orange crate and grab Beacon 06 · E' };
+        : { ...POINTS.freight, text: this.remainingSentries
+          ? 'Clear the sentries · ' + this.remainingSentries + ' remaining'
+          : 'Climb the orange crate and grab Beacon 06 · E' };
     }
   }
 
@@ -223,7 +231,9 @@ export class Game {
     const speed = held('ShiftLeft', 'ShiftRight') ? TUNE.run : TUNE.walk;
     if (direction && this.damage < .5) p.dir = direction;
     if (this.damage < .57) p.vx = toward(p.vx, direction * speed, (p.ground ? 1500 : 880) * dt);
+    const lastGait = this.gait;
     this.gait += Math.abs(p.vx) * dt * .085;
+    if (p.ground && Math.floor(lastGait / Math.PI) !== Math.floor(this.gait / Math.PI)) this.sound('step');
     this.jumpWindow = tap('Space', 'KeyW', 'ArrowUp') ? TUNE.jumpBuffer : this.jumpWindow - dt;
     this.groundWindow = p.ground ? TUNE.coyote : this.groundWindow - dt;
     if (this.jumpWindow > 0 && this.groundWindow > 0) {
@@ -286,7 +296,7 @@ export class Game {
     if (this.weapon) this.charge -= 1;
     this.sound('hit');
     const p = this.body;
-    const victim = this.people.filter(n => n.hp > 0 && delta(n.y, p.y) < (this.weapon ? 43 : 27) &&
+    const victim = this.people.filter(n => n.hp > 0 && delta(n.y, p.y) <= w.vertical &&
       (n.x - p.x) * p.dir >= -12 && delta(n.x, p.x) <= w.range)
       .sort((a, b) => Number(b.hostile) - Number(a.hostile) || delta(a.x, p.x) - delta(b.x, p.x))[0];
     if (!victim) return;
@@ -405,7 +415,7 @@ export class Game {
       if (this.index === 2 && this.job.beacon && !this.heat && near(POINTS.refuge.x))
         return { label: 'Hand off the cartridge', run: () => this.finish() };
       if (this.index === 4 && !this.job.beacon && !this.car && near(POINTS.freight.x, 50) &&
-        this.body.y <= ROAD - 44 && !this.people.some(p => p.hostile && p.hp > 0))
+        this.body.y <= ROAD - 44 && !this.remainingSentries)
         return { label: 'Retrieve Beacon 06', run: () => { this.job!.beacon = true; this.sound('confirm'); } };
       if (this.index === 4 && this.job.beacon && near(POINTS.port.x))
         return { label: 'Return the beacon', run: () => this.finish() };

@@ -7,6 +7,8 @@ export class AudioBed {
   private engineGain?: GainNode;
   private siren?: OscillatorNode;
   private sirenGain?: GainNode;
+  private streetGain?: GainNode;
+  private streetFilter?: BiquadFilterNode;
   private nextNote = 0;
   private beat = 0;
 
@@ -29,6 +31,18 @@ export class AudioBed {
       this.sirenGain.gain.value = 0;
       this.siren.connect(this.sirenGain).connect(m);
       this.siren.start();
+      const street = a.createBufferSource();
+      const noise = a.createBuffer(1, a.sampleRate * 2, a.sampleRate);
+      const band = noise.getChannelData(0);
+      for (let i = 1; i < band.length; i++) band[i] = band[i - 1] * .77 + (Math.random() * 2 - 1) * .23;
+      street.buffer = noise;
+      street.loop = true;
+      this.streetGain = a.createGain();
+      this.streetGain.gain.value = 0;
+      this.streetFilter = a.createBiquadFilter();
+      this.streetFilter.type = 'lowpass';
+      street.connect(this.streetFilter).connect(this.streetGain).connect(m);
+      street.start();
     }
     if (this.audio.state === 'suspended') void this.audio.resume().catch(() => {});
     this.apply();
@@ -54,6 +68,7 @@ export class AudioBed {
 
   cue(name: string) {
     if (name === 'jump') this.tone(173, .12, 'sine', .065, 0, 280);
+    if (name === 'step') this.tone(94, .068, 'triangle', .02, 0, 48);
     if (name === 'door') this.tone(95, .1, 'triangle', .12, 0, 48);
     if (name === 'hit') this.tone(145, .15, 'square', .05, 0, 55);
     if (name === 'alert' || name === 'bad') {
@@ -72,6 +87,8 @@ export class AudioBed {
     this.engineGain.gain.setTargetAtTime(active && riding ? .046 + speed / 14000 : 0, t, .09);
     this.siren.frequency.setTargetAtTime(570 + Math.sin(t * 6) * 160, t, .04);
     this.sirenGain.gain.setTargetAtTime(active && heat >= 2 ? .034 + heat * .009 : 0, t, .1);
+    this.streetFilter?.frequency.setTargetAtTime(230 + speed * 1.8, t, .18);
+    this.streetGain?.gain.setTargetAtTime(active ? .025 + speed / 7400 : 0, t, .18);
     if (!active || t < this.nextNote) return;
     this.nextNote = t + .36;
     const sequence = [73.42, 0, 73.42, 110, 69.3, 0, 69.3, 87.31, 65.41, 0, 65.41, 98, 69.3, 0, 69.3, 103.83];

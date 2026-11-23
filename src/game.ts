@@ -42,6 +42,7 @@ export class Game {
   people: Person[] = [];
   dust: Dust[] = [];
   car: Vehicle | null = null;
+  private jobLoaner: Vehicle | null = null;
   job: JobStatus | null = null;
   notice: Signal | null = null;
   weapon = 0;
@@ -392,7 +393,12 @@ export class Game {
     this.sound('confirm');
     if (this.index === 1 || this.index === 3) {
       this.leave();
-      const loan = carAt(this.current.location.x + 26, 'coupe', true);
+      this.cars = this.cars.filter(c => c !== this.jobLoaner);
+      const x = this.current.location.x + 26;
+      const lane = [0, -1, 1].find(l => this.cars.every(c => delta(c.yLane, l) > TRAFFIC_LANE_CLEARANCE ||
+        delta(c.x, x) >= (CARS[c.kind].width + CARS.coupe.width) / 2)) ?? 0;
+      const loan = carAt(x, 'coupe', true, lane);
+      this.jobLoaner = loan;
       this.cars.push(loan);
       this.board(loan, false);
     }
@@ -419,6 +425,7 @@ export class Game {
     this.progress.cash += reward;
     this.progress.completed += 1;
     this.job = null;
+    this.jobLoaner = null;
     this.checkpoint();
     this.say(this.current ? 'Job cleared · ' + title : 'The coast is yours', '+$' + reward + ' · ' + (this.storageOK ? 'Checkpoint saved' : 'Browser storage unavailable'), 'good');
     this.sound('reward');

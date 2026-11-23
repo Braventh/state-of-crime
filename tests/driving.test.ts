@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CARS, GARAGE_TUNE, LIMIT, type CarKind } from '../src/config.ts';
+import { CARS, GARAGE_TUNE, LIMIT, POINTS, type CarKind } from '../src/config.ts';
 import { Game } from '../src/game.ts';
 import { clearEdges, resetInput, startInput } from '../src/input.ts';
 import { fresh } from '../src/save.ts';
@@ -98,6 +98,23 @@ test('a parked car is solid, but another lane is clear to pass', () => {
   ticks(game, 60);
   assert.ok(car.x > parked.x);
   assert.equal(parked.yLane, 0);
+});
+
+test('retrying Cut Across replaces its previous loaner before launch', () => {
+  const game = new Game({ ...fresh(), completed: 3, x: POINTS.race.x }, () => {});
+  game.traffic = [];
+  key('KeyE');
+  ticks(game);
+  key('KeyE', false);
+  const firstLoan = game.car!;
+  firstLoan.x += 12;
+  game.job!.time = 0;
+  ticks(game);
+  key('KeyE');
+  key('KeyD');
+  ticks(game, 6);
+  assert.ok(!game.cars.includes(firstLoan));
+  assert.ok(game.car!.x > POINTS.race.x + 26);
 });
 
 test('road ends stop the whole vehicle without repeatedly damaging it', () => {

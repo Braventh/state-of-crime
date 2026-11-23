@@ -4,7 +4,7 @@ import { storeSave, type Progress } from './save.ts';
 
 export interface Vehicle { x: number; v: number; lane: number; yLane: number; dir: number; hp: number; kind: CarKind; owned: boolean }
 export interface Person { x: number; home: number; y: number; dir: number; hp: number; hit: number; shot: number; hostile: boolean; coat: string }
-export interface Unit { x: number; v: number; lane: number; dir: number; heavy: boolean; target: number }
+export interface Unit { x: number; v: number; lane: number; dir: number; heavy: boolean; ramAt: number; readyAt: number }
 export interface Dust { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 type Action = 'confirm' | 'door' | 'alert' | 'hit' | 'reward' | 'jump' | 'step' | 'bad';
 type JobStatus = { time: number; drove: boolean; driveStart: number; beacon: boolean; rival: number };
@@ -32,6 +32,7 @@ export class Game {
   hp = TUNE.maxHealth;
   heat = 0;
   search = 0;
+  spotted = false;
   lastSeen = START;
   hide = false;
   units: Unit[] = [];
@@ -83,6 +84,9 @@ export class Game {
   get index() { return this.progress.completed; }
   get current() { return JOBS[this.index]; }
   get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
+  get nearestRefuge() {
+    return HIDEOUTS.reduce((closest, p) => delta(p.x, this.x) < delta(closest.x, this.x) ? p : closest);
+  }
 
   goal(): { x: number; name: string; text: string; hint?: string } {
     if (!this.current) return { ...POINTS.garage, text: 'All five jobs cleared. The coast is yours.' };
@@ -125,7 +129,8 @@ export class Game {
     this.hide = false;
     if (prior !== this.heat) {
       this.say(['', 'Suspicion', 'Active pursuit', 'Heavy pursuit', 'Maximum threat'][this.heat],
-        'Break contact and leave the search radius, or hide at a refuge.', 'bad');
+        this.heat === 1 ? 'Patrols are looking. Leave the area or hide at a refuge.'
+          : 'Dodge marked rams: jump on foot or change lanes. Refuges break contact.', 'bad');
       this.sound('alert');
     }
   }
@@ -137,17 +142,19 @@ export class Game {
       return;
     }
     const level = this.heat;
-    const range = TUNE.police.range[level];
-    if (!this.hide && this.units.some(u => delta(u.x, this.x) < range)) {
+    const police = TUNE.police;
+    const range = police.range[level];
+    this.spotted = !this.hide && this.units.some(u => delta(u.x, this.x) < range);
+    if (this.spotted) {
       this.lastSeen = this.x;
       this.search = 0;
-    } else if (this.hide || delta(this.x, this.lastSeen) > TUNE.police.placeDistance ||
+    } else if (this.hide || delta(this.x, this.lastSeen) > police.placeDistance ||
       (this.body.y < ROAD - 35 && !this.car)) {
       this.search += dt;
     } else {
-      this.search = Math.max(0, this.search - dt * .65);
+      this.search = 0;
     }
-    if (this.search >= TUNE.police.search[level]) {
+    if (this.search >= police.search[level]) {
       this.heat = 0;
       this.search = 0;
       this.units = [];
@@ -158,27 +165,35 @@ export class Game {
     if (!this.hide && this.search === 0 && this.units.length < level && this.intake <= 0) {
       const heading = this.car?.dir ?? this.body.dir;
       const side = level >= 3 && this.units.length % 2 ? heading : -heading;
-      let spawn = this.x + side * (TUNE.police.spawn + this.units.length * 88);
-      if (spawn < 18 || spawn > LIMIT - 18) spawn = this.x - side * TUNE.police.spawn;
-      if (delta(spawn, this.x) >= TUNE.police.spawn) {
+      let spawn = this.x + side * (police.spawn + this.units.length * 88);
+      if (spawn < 18 || spawn > LIMIT - 18) spawn = this.x - side * police.spawn;
+      if (delta(spawn, this.x) >= police.spawn) {
         this.units.push({ x: spawn, v: 0, lane: this.units.length % 2 ? 1 : 0, dir: -side,
-          heavy: level === 4 && this.units.length % 2 === 0, target: this.x });
+          heavy: level === 4 && this.units.length % 2 === 0, ramAt: 0, readyAt: 0 });
         this.intake = 1.35;
       }
     }
     this.units = this.units.filter(u => delta(u.x, this.x) < 1430);
     for (const u of this.units) {
-      const tracking = !this.hide && (delta(u.x, this.x) < range || this.search === 0);
-      u.target = tracking ? this.x : this.lastSeen;
-      const gap = u.target - u.x;
+      const gap = this.lastSeen - u.x;
       const dir = Math.sign(gap) || u.dir;
-      const targetV = delta(u.x, u.target) < 17 ? 0 : dir * TUNE.police.speed[level];
+      const targetV = Math.abs(gap) < 17 ? 0 : dir * police.speed[level];
       u.v = toward(u.v, targetV, dt * 335);
       u.dir = Math.abs(u.v) > 9 ? Math.sign(u.v) : dir;
       u.x = clamp(u.x + u.v * dt, 10, LIMIT - 10);
-      if (this.car && tracking) u.lane = toward(u.lane, this.car.yLane, dt * .8);
-      if (level >= 2 && tracking && delta(u.x, this.x) < 32 && (!this.car ? this.body.y > ROAD - 22 : delta(u.lane, this.car.yLane) < .46))
-        this.hurt(u.heavy ? 19 : 11, -u.dir);
+      const distance = delta(u.x, this.x);
+      const tracking = !this.hide && distance < range;
+      if (this.car && tracking && !u.ramAt) u.lane = toward(u.lane, this.car.yLane, dt * .8);
+      if (u.ramAt && this.clock >= u.ramAt) {
+        u.ramAt = 0;
+        u.readyAt = this.clock + police.ramRecovery;
+        const inPath = this.car ? delta(u.lane, this.car.yLane) < .46 : this.body.y > ROAD - 22;
+        if (tracking && distance < 32 && inPath)
+          this.hurt(u.heavy ? 19 : 11, Math.sign(this.x - u.x) || u.dir);
+      } else if (level >= 2 && !u.ramAt && this.clock >= u.readyAt && tracking &&
+        distance < police.ramRange && (!this.car || delta(u.lane, this.car.yLane) < .6)) {
+        u.ramAt = this.clock + police.ramWindup;
+      }
     }
   }
 
@@ -440,12 +455,12 @@ export class Game {
 
   private interaction(): { label: string; run?: () => void } | null {
     const near = (x: number, distance = 72) => delta(this.x, x) < distance;
-    const hideout = HIDEOUTS.find(p => near(p.x, TUNE.police.hideDistance));
+    const hideout = this.nearestRefuge;
     if (this.hide) {
       if (this.heat) return null;
       return { label: 'Leave refuge', run: () => { this.hide = false; this.sound('door'); } };
     }
-    if (hideout && this.heat && (!this.car || Math.abs(this.car.v) < 105)) return {
+    if (this.heat && near(hideout.x, TUNE.police.hideDistance) && (!this.car || Math.abs(this.car.v) < TUNE.police.hideSpeed)) return {
       label: 'Hide at ' + hideout.name,
       run: () => { if (this.car) this.car.v = 0; this.hide = true; this.sound('door'); }
     };

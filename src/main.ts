@@ -17,7 +17,7 @@ app.innerHTML = `
     <div class="grain"></div>
     <section class="hud" hidden aria-label="Game status">
       <div class="top-left"><div class="caps" id="district"></div><div id="area"></div><div id="vitals"></div></div>
-      <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div></div>
+      <div class="top-right"><div class="caps">POLICE BAND</div><div id="stars"></div><div id="pursuit"></div><div id="refuge"></div></div>
       <div class="job"><div class="caps" id="jobname"></div><div id="objective"></div><div id="distance"></div><div id="goal-hint" hidden></div></div>
       <div class="tracker" aria-label="District map"><div class="roadline"><i id="map-target"></i><i id="map-player"></i></div><div class="maplabels"><span>CROWN</span><span>KEYS</span><span>YARD</span></div></div>
       <div class="interaction" id="interaction"></div>
@@ -157,8 +157,13 @@ function updateHud(g: Game) {
   $('area').textContent = area.name;
   $('vitals').innerHTML = '<span class="health"><i style="width:' + g.hp + '%"></i></span><span>HP ' + Math.ceil(g.hp) + '</span><b>$' + g.progress.cash.toLocaleString('en-US') + '</b>';
   $('stars').innerHTML = Array.from({ length: 4 }, (_, i) => '<span class="' + (i < g.heat ? 'hot' : '') + '">◆</span>').join('');
-  $('pursuit').textContent = g.heat ? g.search > 0 ? 'SEARCH / ' + Math.max(0, TUNE.police.search[g.heat] - g.search).toFixed(1) + 's'
-    : ['', 'SUSPICION', 'IN PURSUIT', 'HEAVY PURSUIT', 'MAXIMUM THREAT'][g.heat] : 'CLEAR SIGNAL';
+  const remaining = (Math.ceil(Math.max(0, TUNE.police.search[g.heat] - g.search) * 10) / 10).toFixed(1) + 's';
+  $('pursuit').textContent = !g.heat ? 'CLEAR SIGNAL' : g.hide ? 'HIDING / ' + remaining
+    : g.search > 0 ? 'SEARCHING / ' + remaining : g.spotted ? 'SPOTTED' : 'UNSEEN / LEAVE AREA';
+  const refugeGap = g.nearestRefuge.x - g.x;
+  $('refuge').textContent = !g.heat || g.hide ? '' : Math.abs(refugeGap) < TUNE.police.hideDistance
+    ? g.car && Math.abs(g.car.v) >= TUNE.police.hideSpeed ? 'BRAKE TO HIDE' : 'E TO HIDE'
+    : 'REFUGE ' + (refugeGap > 0 ? '→ ' : '← ') + Math.round(Math.abs(refugeGap) / 9) + ' M';
   const goal = g.goal();
   $('jobname').textContent = g.current ? '0' + (g.index + 1) + ' / ' + (g.job || goal.hint ? g.current.title : 'New contact') : '05 / 05 · CAMPAIGN COMPLETE';
   $('objective').textContent = goal.text;
@@ -187,7 +192,7 @@ function updateHud(g: Game) {
   }
   $('notice').hidden = !g.notice;
   $('hide').hidden = !g.hide;
-  $('hide-detail').textContent = g.heat ? 'Stay quiet until the search moves on.' : 'Band is clear. Press E to rejoin the road.';
+  $('hide-detail').textContent = g.heat ? 'Heat clears in ' + remaining + '.' : 'Band is clear. Press E to rejoin the road.';
 }
 let last = performance.now(), hudAt = 0;
 function loop(now: number) {

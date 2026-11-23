@@ -6,9 +6,9 @@ import { DISTRICT_WIDTH } from './district.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
 import { renderSandbox } from './sandbox-art.ts';
-import { sandboxStorage, type SandboxSave } from './sandbox-save.ts';
+import { recoverCheckpoint, sandboxStorage, type SandboxSave } from './sandbox-save.ts';
 import { loadSettings, storeSettings } from './save.ts';
-import { shopStock } from './shops.ts';
+import { isCosmetic, shopStock } from './shops.ts';
 
 const app = document.querySelector<HTMLElement>('#app')!;
 app.innerHTML = `
@@ -23,6 +23,7 @@ app.innerHTML = `
         <p id="first-steps"><strong>A / D</strong> Move · <strong>Space</strong> Jump · <strong>Esc</strong> Pause<br>
           Try the fire escape to your left, or head right and press <strong>E</strong> at a lit door to enter Bluehour Arcade.</p>
         <div class="menu-actions"><button id="play" class="primary">New Game</button><button id="new-game" hidden>New Game</button></div>
+        <p id="retry-detail" class="deck"></p>
         <p id="save-warning"></p>
         <details id="help"><summary>Controls &amp; settings</summary>
           <dl><div><dt>Walk / sprint</dt><dd>A D or ← → / Shift</dd></div>
@@ -44,6 +45,7 @@ app.innerHTML = `
         <p class="eyebrow">CROWNWATER STOREFRONT</p>
         <h1 id="shop-title"></h1>
         <p id="shop-message" class="deck" aria-live="polite"></p>
+        <p id="disguise-tip" class="deck"></p>
         <div id="stock-list"></div>
         <button id="leave-shop">Back <kbd>Esc</kbd></button>
       </section>
@@ -93,13 +95,17 @@ pause.disabled = true;
 function save(replace = false) {
   if (!started || !game.hp) return;
   checkpoint = game.snapshot();
-  const status = persistence.write(checkpoint, replace);
+  persist(checkpoint, replace);
+}
+function persist(next: SandboxSave, replace = false) {
+  const status = persistence.write(next, replace);
   saveWarning = status === 'changed' ? 'Save changed in another tab · this session only'
     : status === 'unavailable' ? 'Storage unavailable · this session only' : '';
 }
 function menuLabels(title?: string) {
   get('menu-title').textContent = title ?? (started ? 'Paused' : 'State of Crime');
   play.textContent = title ? 'Retry' : started ? 'Resume' : checkpoint ? 'Continue' : 'New Game';
+  get('retry-detail').textContent = title && game.police.level ? 'Retry from cover. Wanted stars do not reset.' : '';
   newGame.hidden = !started && !checkpoint;
   get('first-steps').hidden = Boolean(started || checkpoint || title);
   get('save-warning').textContent = saveWarning;
@@ -147,6 +153,7 @@ function closeShop() {
 get('leave-shop').onclick = closeShop;
 function showShop() {
   const market = game.shop!;
+  const items = shopStock[market.id];
   const stock = get('stock-list');
   const message = get('shop-message');
   const back = get('leave-shop');
@@ -154,9 +161,11 @@ function showShop() {
   const target = car ? ` · Vehicle: ${CARS[car.kind].label}` : '';
   get('shop-title').textContent = market.name;
   message.textContent = `Available cash $${game.cash}${target}`;
+  get('disguise-tip').textContent = items.some(isCosmetic)
+    ? 'A disguise makes you harder to recognize. It does not clear wanted stars.' : '';
   stock.replaceChildren();
   const refresh: (() => void)[] = [];
-  for (const item of shopStock[market.id]) {
+  for (const item of items) {
     const button = document.createElement('button');
     button.className = 'stock';
     const name = document.createElement('strong'), info = document.createElement('small'), price = document.createElement('span');
@@ -216,8 +225,12 @@ function frame(now: number) {
     if (!game.hp) {
       started = false;
       pause.disabled = true;
+      if (checkpoint) {
+        const wanted = game.police.level > 0;
+        checkpoint = recoverCheckpoint(checkpoint, wanted);
+        if (wanted) persist(checkpoint);
+      }
       setRunning(false);
-      if (checkpoint) checkpoint = { ...checkpoint, hp: 70 };
       menuLabels('Knocked out');
     } else if (game.time >= saveAt && game.body.grounded && !game.body.climb) {
       saveAt = game.time + 1.4;
@@ -235,7 +248,7 @@ function frame(now: number) {
     : game.armory.readout);
   label('status', `HP ${game.hp} · $${game.cash}`);
   label('stars', '★'.repeat(police.level) + '☆'.repeat(5 - police.level));
-  label('pursuit', police.level ? police.mode + ' · ' + police.response.name : 'Crownwater / Free roam');
+  label('pursuit', police.readout(game.suspect));
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

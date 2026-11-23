@@ -1,6 +1,6 @@
 import { weapons, type Drop, type Magazine, type WeaponId } from './combat.ts';
 import { CARS } from './config.ts';
-import { CELLAR, DISTRICT_WIDTH, inside, SPAWN, STREET } from './district.ts';
+import { CELLAR, DISTRICT_WIDTH, inside, passages, SPAWN, STREET } from './district.ts';
 import { type Identity } from './police.ts';
 import { paints } from './shops.ts';
 import { decodeSave, SAVE_KEY } from './save.ts';
@@ -12,7 +12,7 @@ export interface SandboxSave {
   engine: boolean; armor: boolean; stock: Partial<Record<WeaponId, Magazine>>; selected: WeaponId;
   regions: ['Crownwater']; robbed: string[]; defeated: string[]; drops: Drop[];
   rides: Pick<Ride, 'id' | 'x' | 'lane' | 'dir' | 'hp' | 'color' | 'taken'>[];
-  driving: string | null; heat: number; evidence: Identity | null; lead: number | null;
+  driving: string | null; heat: number; evidence: Identity | null; lead: number | null; leadY?: number;
 }
 type Status = 'saved' | 'unavailable' | 'changed';
 const obj = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -52,7 +52,9 @@ export function decodeSandbox(raw: string | null): SandboxSave | null {
       || !Array.isArray(p.rides) || p.rides.length > initialFleet.size || !p.rides.every(validRide)
       || new Set(p.rides.map(r => r.id)).size !== p.rides.length
       || (p.driving !== null && (p.covered || !p.rides.some(r => r.id === p.driving && r.taken && r.hp > 0)))
-      || !between(p.heat, 0, 200) || (p.lead !== null && !streetX(p.lead)) || !obj(p.stock) || !isSlot(p.selected)) return null;
+      || !between(p.heat, 0, 200) || (p.lead !== null && !streetX(p.lead))
+      || (p.leadY !== undefined && (p.lead === null || !between(p.leadY, 0, CELLAR)))
+      || !obj(p.stock) || !isSlot(p.selected)) return null;
     const stock: SandboxSave['stock'] = {};
     for (const [id, ammo] of Object.entries(p.stock)) {
       const slot = Number(id);
@@ -67,7 +69,8 @@ export function decodeSandbox(raw: string | null): SandboxSave | null {
     return { version: 2, x: p.x, hp: p.hp, cash: p.cash, outfit: p.outfit, hair: p.hair, covered: p.covered,
       engine: p.engine, armor: p.armor, stock, selected: p.selected, regions: ['Crownwater'], robbed: p.robbed,
       defeated: p.defeated, drops: p.drops, rides: p.rides, driving: typeof p.driving === 'string' ? p.driving : null,
-      heat: p.heat, evidence: e as Identity | null, lead: p.lead };
+      heat: p.heat, evidence: e as Identity | null, lead: p.lead,
+      ...(typeof p.leadY === 'number' && { leadY: p.leadY }) };
   } catch { return null; }
 }
 export function sandboxStorage(initial: SandboxSave, storage: Pick<Storage, 'getItem' | 'setItem'> | undefined) {
@@ -96,3 +99,11 @@ export function sandboxStorage(initial: SandboxSave, storage: Pick<Storage, 'get
   };
 }
 export const savedHeight = (save: SandboxSave) => save.covered ? CELLAR : STREET;
+
+export function recoverCheckpoint(save: SandboxSave, wanted: boolean): SandboxSave {
+  const recovered = { ...save, hp: 70 };
+  if (!wanted || save.covered) return recovered;
+  const distance = (p: (typeof passages)[number]) => Math.min(...p.doors.map(x => Math.abs(x - save.x)));
+  const shelter = passages.reduce((nearest, p) => distance(p) < distance(nearest) ? p : nearest);
+  return { ...recovered, x: Math.round((shelter.left + shelter.right) / 2), covered: true, driving: null };
+}

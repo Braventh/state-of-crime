@@ -14,15 +14,36 @@ test('Shop robbery pays once, reports witnesses, and panics the clerk without an
   const game = new Sandbox();
   const shop = businesses[0];
   game.body = bodyAt(shop.x);
+  game.police.officers = [];
+  assert.match(game.prompt, /G  ·  Rob Velvet Loom/);
   const start = game.cash;
   game.step(1 / 60, { ...neutral, rob: true });
   assert.equal(game.cash, start + shop.till);
   assert.equal(game.crime?.kind, 'shopRobbery');
+  assert.match(game.notice, /Velvet Loom robbed · \+\$86 · .*calling police/);
   assert.ok(game.crime!.witnesses > 0);
   assert.ok(game.actors.find(actor => actor.id === shop.id)!.panic > 0);
   for (const other of game.actors) if (other.id !== shop.id) other.robbed = true;
   game.step(1 / 60, { ...neutral, rob: true });
   assert.equal(game.cash, start + shop.till);
+  assert.equal(game.notice, 'No robbery target nearby');
+});
+
+test('Pedestrian robbery selects the closest target alongside a vehicle prompt and names direct police sight', () => {
+  const game = new Sandbox();
+  const car = game.rides[0];
+  const [first, closest] = game.actors;
+  game.body = bodyAt(car.x);
+  first.x = car.x - 24;
+  closest.x = car.x + 8;
+  game.actors = [first, closest];
+  game.police.officers[0].x = car.x + 50;
+  assert.match(game.prompt, /E  ·  Steal .* \/ G  ·  Rob Pedestrian/);
+  game.step(1 / 60, { ...neutral, rob: true });
+  assert.equal(first.robbed, false);
+  assert.equal(closest.robbed, true);
+  assert.equal(game.cash, 140 + 16 + closest.outfit * 5);
+  assert.match(game.notice, /Pedestrian robbed · \+\$\d+ · Spotted by police/);
 });
 
 test('An attacked gang alerts only its faction and defeated members leave cash and gear', () => {
@@ -128,6 +149,7 @@ test('Motorworks re-enters the car just exited instead of a closer car of the sa
   game.ride = car;
   game.body = bodyAt(car.x);
   game.step(1 / 60, { ...neutral, exit: true });
+  assert.equal(game.garageRide, car);
   game.step(1 / 60, { ...neutral, exit: true });
   assert.equal(game.ride, car);
   game.step(1 / 60, { ...neutral, use: true });

@@ -1,7 +1,7 @@
 import './sandbox.css';
 import { AudioBed } from './audio.ts';
 import type { WeaponId } from './combat.ts';
-import { H, W } from './config.ts';
+import { CARS, H, W } from './config.ts';
 import { DISTRICT_WIDTH } from './district.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
@@ -149,26 +149,43 @@ get('leave-shop').onclick = closeShop;
 function showShop() {
   const market = game.shop!;
   const stock = get('stock-list');
+  const message = get('shop-message');
+  const back = get('leave-shop');
+  const car = game.garageRide;
+  const target = car ? ` · Vehicle: ${CARS[car.kind].label}` : '';
   get('shop-title').textContent = market.name;
-  get('shop-message').textContent = `Available cash $ ${game.cash}`;
+  message.textContent = `Available cash $${game.cash}${target}`;
   stock.replaceChildren();
+  const refresh: (() => void)[] = [];
   for (const item of shopStock[market.id]) {
     const button = document.createElement('button');
     button.className = 'stock';
     const name = document.createElement('strong'), info = document.createElement('small'), price = document.createElement('span');
+    const reason = document.createElement('small');
+    reason.className = 'stock-reason';
     name.textContent = item.name;
-    info.textContent = item.info;
     price.textContent = '$' + item.price;
-    button.append(name, price, info);
+    button.append(name, price, info, reason);
+    refresh.push(() => {
+      const issue = game.purchaseIssue(item);
+      const rounds = item.kind === 'ammo' ? game.ammoPackRounds : 0;
+      info.textContent = rounds > 0 ? `+${rounds} reserve rounds for ${game.armory.gun.name}` : item.info;
+      reason.textContent = issue;
+      reason.hidden = !issue;
+      button.disabled = Boolean(issue);
+    });
     button.onclick = () => {
       const result = game.buy(item);
-      get('shop-message').textContent = result || `${item.name} purchased · $${game.cash} left`;
+      message.textContent = result || `${item.name} purchased · $${game.cash} left${target}`;
+      refresh.forEach(update => update());
+      if (button.disabled) back.focus();
       if (!result) save();
     };
     stock.append(button);
   }
+  refresh.forEach(update => update());
   shop.hidden = false;
-  get('leave-shop').focus();
+  back.focus();
   resetInput();
 }
 startInput(() => running && !game.shop, pause);

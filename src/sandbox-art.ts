@@ -33,6 +33,8 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
         }
       }
     }
+    const robbery = game.robberyTarget;
+    if (robbery?.kind === 'robbery') lettering(context, '▼', robbery.actor.x, robbery.actor.y - 79, '#ffc7a3', 11);
     for (const lane of [-1, 0, 1]) for (const ride of game.rides) {
       if (!visible(ride.x) || Math.round(ride.depth) !== lane) continue;
       vehicle(context, ride.x, rideY(ride), ride.kind, ride.dir, ride.v, ride.hp > 0 ? ride.color : '#524b57',

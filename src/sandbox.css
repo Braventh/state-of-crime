@@ -43,9 +43,11 @@ canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%
 .shop-card h1 { font-size: clamp(1.15rem, 2.8vw, 2rem); }
 .shop-card #stock-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: .35rem; margin: .55rem 0; }
 .shop-card .stock { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: .2rem; text-align: left; font-size: .76rem; padding: .35rem; }
-.shop-card .stock:hover { background: #493241; }
+.shop-card .stock:enabled:hover { background: #493241; }
+.shop-card .stock:disabled { opacity: 1; background: #261f2b; border-color: #504451; color: #c6adae; }
 .shop-card .stock span { color: #f4c496; }
 .shop-card .stock small { grid-column: span 2; color: #c6adae; }
+.shop-card .stock .stock-reason { color: #f5ab87; }
 @media (max-width: 650px) { .mast small { display: none; } }
 @media (max-width: 480px) { .dock { display: grid; grid-template-columns: auto auto; gap: .2rem .75rem; } .dock #prompt { text-align: right; } .dock #status { text-align: right; } }
 @media (max-height: 390px) {

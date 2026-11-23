@@ -21,6 +21,8 @@ app.innerHTML = `
         <p class="eyebrow">THE CITY AFTER DARK</p>
         <h1 id="menu-title">State of Crime</h1>
         <p class="deck">Crownwater · Lantern Row to Glasshouse Works</p>
+        <p id="first-steps"><strong>A / D</strong> Move · <strong>Space</strong> Jump · <strong>Esc</strong> Pause<br>
+          Try the fire escape to your left, or head right and press <strong>E</strong> at a lit door to enter Bluehour Arcade.</p>
         <div class="menu-actions"><button id="play" class="primary">New Game</button><button id="new-game" hidden>New Game</button></div>
         <p id="save-warning"></p>
         <details id="help"><summary>Controls &amp; settings</summary>
@@ -100,6 +102,7 @@ function menuLabels(title?: string) {
   get('menu-title').textContent = title ?? (started ? 'Paused' : 'State of Crime');
   play.textContent = title ? 'Retry' : started ? 'Resume' : checkpoint ? 'Continue' : 'New Game';
   newGame.hidden = !started && !checkpoint;
+  get('first-steps').hidden = Boolean(started || checkpoint || title);
   get('save-warning').textContent = saveWarning;
 }
 function setRunning(value: boolean) {
@@ -168,7 +171,7 @@ function showShop() {
   get('leave-shop').focus();
   resetInput();
 }
-startInput(() => running && !game.shop);
+startInput(() => running && !game.shop, pause);
 let previous = performance.now();
 function label(id: string, value: string) {
   const el = get(id);

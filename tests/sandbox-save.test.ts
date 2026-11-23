@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { businesses } from '../src/crime.ts';
+import { DISTRICT_WIDTH } from '../src/district.ts';
 import { Sandbox } from '../src/sandbox.ts';
 import { decodeSandbox, SANDBOX_KEY, sandboxStorage } from '../src/sandbox-save.ts';
 import { fresh, SAVE_KEY } from '../src/save.ts';
@@ -59,6 +60,26 @@ test('A painted car, purchased gear, ammunition and equipped look survive a vers
   assert.equal(restored.hair, 1);
   assert.equal(restored.armory.ammo.rounds, 6);
   assert.equal(restored.police.level, 5);
+});
+
+test('A checkpoint taken immediately after an edge carjacking can be restored', () => {
+  for (const direction of [1, -1]) {
+    const game = new Sandbox();
+    const commuter = game.rides.find(ride => ride.traffic)!;
+    const edge = direction === 1 ? 22 : DISTRICT_WIDTH - 22;
+    game.body = bodyAt(edge);
+    Object.assign(commuter, { x: edge - direction * 47, v: direction * 112, dir: direction });
+    game.step(1 / 60, { ...neutral, use: true });
+    assert.equal(game.ride, commuter);
+
+    const save = decodeSandbox(JSON.stringify(game.snapshot()));
+    assert.ok(save);
+    assert.equal(save.x, edge);
+    const restored = new Sandbox();
+    restored.restore(save);
+    assert.equal(restored.ride?.id, commuter.id);
+    assert.equal(restored.body.x, edge);
+  }
 });
 
 test('Storage migrates only compatible V1 data, rejects bad V2 data and protects a newer tab', () => {

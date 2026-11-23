@@ -1,12 +1,12 @@
 import { CARS, clamp, W } from './config.ts';
 import { Armory, clearShot, weapons, type AttackInput, type Drop } from './combat.ts';
 import { businesses, type Business, type Crime, type CrimeKind } from './crime.ts';
-import { blockAt, DISTRICT_WIDTH, ladders, SPAWN, STREET } from './district.ts';
+import { blockAt, DISTRICT_WIDTH, SPAWN, STREET } from './district.ts';
 import { Police, type Suspect } from './police.ts';
 import { savedHeight, type SandboxSave } from './sandbox-save.ts';
 import { shopStock, type Stock } from './shops.ts';
 import { advanceCrowd, gangLoot, streetLife } from './street-life.ts';
-import { bodyAt, closeDoor, traverse, type MotionInput } from './traversal.ts';
+import { bodyAt, closeDoor, nearbyLadder, traverse, type MotionInput } from './traversal.ts';
 import { commute, fleet, steer, type DriveInput, type Ride } from './vehicles.ts';
 
 export type SandboxInput = MotionInput & AttackInput & DriveInput & { rob?: boolean };
@@ -85,7 +85,7 @@ export class Sandbox {
 
   snapshot(): SandboxSave {
     return {
-      version: 2, x: Math.round(this.body.x), covered: this.body.covered, hp: Math.max(1, this.hp), cash: this.cash,
+      version: 2, x: Math.round(clamp(this.body.x, 22, DISTRICT_WIDTH - 22)), covered: this.body.covered, hp: Math.max(1, this.hp), cash: this.cash,
       outfit: this.outfit, hair: this.hair, engine: this.engine, armor: this.armor,
       stock: structuredClone(this.armory.stock), selected: this.armory.slot, regions: ['Crownwater'],
       robbed: this.actors.filter(a => a.robbed).map(a => a.id), defeated: this.actors.filter(a => !a.hp).map(a => a.id),
@@ -201,11 +201,14 @@ export class Sandbox {
       if (parked) return `E  ·  Prism Motorworks / X  ·  Enter ${CARS[parked.kind].label}`;
       return `E  ·  ${this.business.name}${this.robberyTarget?.kind === 'shopRobbery' ? ' / G  ·  Rob' : ''}`;
     }
+    const ladder = nearbyLadder(this.body);
+    if (ladder) {
+      const keys = this.body.y >= ladder.low ? 'W / ↑' : this.body.y <= ladder.high ? 'S / ↓' : 'W S / ↑ ↓';
+      return `${keys}  ·  Climb fire escape`;
+    }
     const ride = this.availableRide;
     if (ride) return `E  ·  ${ride.taken ? 'Enter' : ride.traffic ? 'Carjack' : 'Steal'} ${CARS[ride.kind].label}`;
     if (this.robberyTarget) return `G  ·  ${this.robberyTarget.kind === 'shopRobbery' ? 'Rob ' + this.robberyTarget.name : 'Demand cash'}`;
-    if (!this.body.covered && ladders.some(l => Math.abs(l.x - this.body.x) < 24 && this.body.y >= l.high - 5 && this.body.y <= l.low + 2))
-      return 'W / S  ·  Fire escape';
     return this.body.covered ? 'Find a lit door to return to the street' : 'Explore Crownwater';
   }
 

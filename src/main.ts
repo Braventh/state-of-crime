@@ -68,7 +68,7 @@ function goto(s: typeof scene) {
       <div class="stamp"><div>24° N &nbsp; / &nbsp; 81° W</div><strong>THE<br>PALMETTO<br>TAPES</strong><span>EPISODE 01 — OPEN ROAD</span></div>
       <div class="title-controls"><b>FIELD CONTROLS</b> ${keys}</div>`;
   }
-  if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', 'The coast can wait.', 
+  if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', 'The coast can wait.',
     btn('resume', 'Resume ↗', true) + btn('settings', 'Settings') + btn('title', 'Main menu'), '<p class="controls">' + keys + '</p>');
   if (s === 'settings') overlay.innerHTML = panel('OPTIONS / AUDIO & DISPLAY', 'Settings.', 'Settings are saved on this browser.', btn('back', 'Back ↗', true),
     `<label>Master volume <span id="volume-label">${Math.round(settings.volume * 100)}%</span><input id="volume" type="range" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>

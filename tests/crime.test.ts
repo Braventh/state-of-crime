@@ -150,9 +150,12 @@ test('Motorworks re-enters the car just exited instead of a closer car of the sa
   game.body = bodyAt(car.x);
   game.step(1 / 60, { ...neutral, exit: true });
   assert.equal(game.garageRide, car);
+  assert.equal(game.garageRideLabel, 'Kite Compact (your last car)');
+  assert.match(game.prompt, /Enter Kite Compact \(your last car\)/);
   game.step(1 / 60, { ...neutral, exit: true });
   assert.equal(game.ride, car);
   game.step(1 / 60, { ...neutral, use: true });
+  assert.equal(game.garageRideLabel, 'Kite Compact (current car)');
   const paint = shopStock.paint[0];
   assert.equal(game.buy(paint), '');
   assert.equal(car.color, paint.value);

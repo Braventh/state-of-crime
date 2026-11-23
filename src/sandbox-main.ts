@@ -1,7 +1,7 @@
 import './sandbox.css';
 import { AudioBed } from './audio.ts';
 import type { WeaponId } from './combat.ts';
-import { CARS, H, W } from './config.ts';
+import { H, W } from './config.ts';
 import { DISTRICT_WIDTH } from './district.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
@@ -151,8 +151,8 @@ function showShop() {
   const stock = get('stock-list');
   const message = get('shop-message');
   const back = get('leave-shop');
-  const car = game.garageRide;
-  const target = car ? ` · Vehicle: ${CARS[car.kind].label}` : '';
+  const car = game.garageRideLabel;
+  const target = car ? ` · Vehicle: ${car}` : '';
   get('shop-title').textContent = market.name;
   message.textContent = `Available cash $${game.cash}${target}`;
   stock.replaceChildren();

@@ -72,6 +72,12 @@ export class Sandbox {
     }
     return parked;
   }
+  get garageRideLabel() {
+    const car = this.garageRide;
+    if (!car) return;
+    const target = car === this.ride ? 'current car' : car === this.lastExitedRide ? 'your last car' : 'nearest parked car';
+    return `${CARS[car.kind].label} (${target})`;
+  }
   get ammoPackRounds() {
     const { gun, ammo } = this.armory;
     return Math.min(gun.refill, gun.refill * 4 - ammo.reserve);
@@ -238,8 +244,8 @@ export class Sandbox {
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
     const business = this.business;
     if (business) {
-      const parked = this.garageRide;
-      return `E  ·  ${business.name}${parked ? ' / X  ·  Enter ' + CARS[parked.kind].label : ''}`;
+      const parked = this.garageRideLabel;
+      return `E  ·  ${business.name}${parked ? ' / X  ·  Enter ' + parked : ''}`;
     }
     const ladder = nearbyLadder(this.body);
     if (ladder) {

@@ -46,6 +46,24 @@ test('starting a timed job checkpoints its contact, not the loaner or pursuit', 
   assert.equal(retry.prompt(), 'Talk to Mara');
 });
 
+test('a stale tab cannot replace another tab’s purchases or payout at job acceptance or after retry', () => {
+  const earlier = at(POINTS.delivery.x, 1, 420);
+  const later = at(POINTS.outpost.x, 2, 840);
+  press(later, 'KeyE');
+  later.purchase('engine');
+  assert.equal(loadSave()?.engine, true);
+  const shared = loadSave();
+  press(earlier, 'KeyE');
+  assert.ok(earlier.job);
+  assert.equal(earlier.storageOK, false);
+  assert.match(earlier.storageWarning, /changed elsewhere/);
+  assert.deepEqual(loadSave(), shared);
+  const retry = earlier.retry();
+  press(retry, 'KeyE');
+  assert.equal(retry.storageOK, false);
+  assert.deepEqual(loadSave(), shared);
+});
+
 test('Dead Air gates the cartridge to the roof and lets the player wait out the search', () => {
   const game = at(POINTS.refuge.x, 2);
   press(game, 'KeyE');

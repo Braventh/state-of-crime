@@ -1,6 +1,6 @@
 import { CARS, EXCHANGE_ROOF, GARAGES, GARAGE_TUNING, HIDEOUTS, JOBS, LIMIT, PLATFORMS, POINTS, ROAD, START, TOOLS, TUNE, UPGRADES, W, clamp, toward, type CarKind } from './config.ts';
 import { held, tap } from './input.ts';
-import { storeSave, type Progress } from './save.ts';
+import { checkpointWriter, type Progress } from './save.ts';
 
 export interface Vehicle { x: number; v: number; lane: number; yLane: number; dir: number; hp: number; kind: CarKind; owned: boolean; personal?: true }
 export interface Person { x: number; home: number; y: number; dir: number; hp: number; hit: number; shot: number; hostile: boolean; coat: string }
@@ -55,13 +55,15 @@ export class Game {
   flash = 0;
   garage: (typeof GARAGES)[number] | null = null;
   lost = false;
-  storageOK = true;
   progress: Progress;
   private sound: (action: Action) => void;
+  private save: ReturnType<typeof checkpointWriter>;
+  private saveStatus: ReturnType<Game['save']> = 'saved';
 
-  constructor(progress: Progress, sound: (action: Action) => void) {
+  constructor(progress: Progress, sound: (action: Action) => void, save = checkpointWriter()) {
     this.progress = progress;
     this.sound = sound;
+    this.save = save;
     this.body.x = progress.x;
     this.camera = clamp(progress.x - W * .4, 0, LIMIT - W);
     const garage = garageNear(progress.x);
@@ -84,6 +86,11 @@ export class Game {
   get index() { return this.progress.completed; }
   get current() { return JOBS[this.index]; }
   get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
+  get storageOK() { return this.saveStatus === 'saved'; }
+  get storageWarning() {
+    return this.saveStatus === 'changed' ? 'Browser checkpoint changed elsewhere. This checkpoint is kept in this tab only.'
+      : this.saveStatus === 'unavailable' ? 'Browser storage unavailable. Your checkpoint is kept in this tab only.' : '';
+  }
   private get onExchangeRoof() {
     return !this.car && delta(this.x, POINTS.exchange.x) < 46 && Math.abs(this.body.y - EXCHANGE_ROOF) <= 3;
   }
@@ -124,12 +131,12 @@ export class Game {
   say(title: string, detail: string, kind: Signal['kind'] = 'info') { this.notice = { title, detail, kind, age: 4.8 }; }
   checkpoint(x = this.x) {
     this.progress.x = Math.round(x);
-    this.storageOK = storeSave(this.progress);
+    this.saveStatus = this.save(this.progress);
   }
 
   retry() {
-    const game = new Game({ ...this.progress, owned: [...this.progress.owned] }, this.sound);
-    game.storageOK = this.storageOK;
+    const game = new Game({ ...this.progress, owned: [...this.progress.owned] }, this.sound, this.save);
+    game.saveStatus = this.saveStatus;
     return game;
   }
 

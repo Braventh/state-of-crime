@@ -81,14 +81,13 @@ function goto(s: typeof scene) {
         <div class="buttons">${btn('new', 'New game <span>↗</span>', true)}${btn('continue', 'Continue from checkpoint', false, !saved)}${btn('settings', 'Settings')}</div>
         ${saved ? '<p class="checkpoint-summary">' + saved.completed + '/5 cleared · $' + saved.cash.toLocaleString('en-US') + ' saved'
           + (next ? ' · Next: ' + next.title + '<br>Active jobs restart. Pursuits reset.' : '')
-          + (sessionCheckpoint ? '<br>Tab only · Browser storage unavailable.' : '') + '</p>' : ''}
+          + (sessionCheckpoint ? '<br>' + sessionCheckpoint.storageWarning : '') + '</p>' : ''}
       </div>
       <div class="stamp"><div>24° N &nbsp; / &nbsp; 81° W</div><strong>THE<br>PALMETTO<br>TAPES</strong><span>EPISODE 01 — OPEN ROAD</span></div>
       <div class="title-controls"><b>GET STARTED</b> ${directionKeys} Move · ${interactKey} Interact · ${pauseKey} Pause / all controls</div>`;
   }
-  if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', game && !game.storageOK
-    ? 'Browser storage unavailable. Your checkpoint is kept in this tab only.'
-    : 'Continue from your last checkpoint if you leave. Active jobs restart and pursuits reset.',
+  if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', game?.storageWarning
+    || 'Continue from your last checkpoint if you leave. Active jobs restart and pursuits reset.',
     btn('resume', 'Resume ↗', true) + btn('settings', 'Settings') + btn('title', 'Main menu'), controls);
   if (s === 'settings') overlay.innerHTML = panel('OPTIONS / AUDIO & DISPLAY', 'Settings.', 'Settings are saved on this browser.', btn('back', 'Back ↗', true),
     `<label>Master volume <span id="volume-label">${Math.round(settings.volume * 100)}%</span><input id="volume" type="range" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>

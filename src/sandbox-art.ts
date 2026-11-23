@@ -63,7 +63,14 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       context.stroke();
       form(context, '#fff1b0', trace.x - 5, trace.y - 3, trace.x, trace.y - 7, trace.x + 7, trace.y, trace.x + 3, trace.y + 4);
     }
-    if (!game.ride) portrait(context, { ...game.body, outfit: game.outfit, hair: game.hair, skin: 1, hit: game.hit,
-      down: game.hp ? 0 : .25, pose, aim: aiming, slope, weapon: slot, reload: loading > 0, player: true });
+    if (!game.ride) {
+      const { x, y } = game.body;
+      portrait(context, { ...game.body, outfit: game.outfit, hair: game.hair, skin: 1, hit: game.hit,
+        down: game.hp ? 0 : .25, pose, aim: aiming, slope, weapon: slot, reload: loading > 0, player: true });
+      if (game.hp) {
+        form(context, '#211c29', x - 8, y - 79, x + 8, y - 79, x, y - 69);
+        form(context, '#ffd6a2', x - 5, y - 77, x + 5, y - 77, x, y - 71);
+      }
+    }
   });
 }

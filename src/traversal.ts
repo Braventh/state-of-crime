@@ -15,6 +15,9 @@ export const closeDoor = (body: Motion) => {
   for (const passage of passages) for (const door of passage.doors)
     if (Math.abs(body.x - door) < 27) return { door, passage };
 };
+export const nearbyLadder = (body: Motion) => body.covered ? undefined
+  : ladders.find(l => Math.abs(l.x - body.x) <= 24 && body.y >= l.high - 1 && body.y <= l.low + 1);
+
 export function traverse(body: Motion, input: MotionInput, dt: number) {
   const doorway = input.use && closeDoor(body);
   if (doorway) {
@@ -24,7 +27,7 @@ export function traverse(body: Motion, input: MotionInput, dt: number) {
     body.vx = body.vy = body.buffer = 0;
     return 'door';
   }
-  const ladder = !body.covered && ladders.find(l => Math.abs(l.x - body.x) <= 16 && body.y >= l.high - 1 && body.y <= l.low + 1);
+  const ladder = nearbyLadder(body);
   if (ladder && input.vertical && (body.climb || (input.vertical < 0 ? body.y > ladder.high : body.y < ladder.low))) {
     body.climb = true;
     body.x = toward(body.x, ladder.x, 170 * dt);

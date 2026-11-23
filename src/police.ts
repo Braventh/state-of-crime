@@ -86,8 +86,7 @@ export class Police {
       return this.line(a, s, Math.max(this.level >= 4 ? 65 : 33, range));
     });
   }
-  report(crime: Crime, s: Suspect, downedOfficer?: Actor) {
-    const observed = this.watched(s) || (downedOfficer !== undefined && this.line(downedOfficer, s));
+  report(crime: Crime, s: Suspect, observed = this.watched(s)) {
     const noise = crime.kind === 'gunfire' || crime.kind === 'damage' || crime.kind === 'wreck';
     const rapid = noise && this.clock - this.reportedNoiseAt < .32;
     if (noise && !rapid) this.reportedNoiseAt = this.clock;

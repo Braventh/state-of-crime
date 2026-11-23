@@ -203,13 +203,13 @@ export class Sandbox {
     return '';
   }
 
-  offend(kind: CrimeKind, downedOfficer?: Actor) {
+  offend(kind: CrimeKind, observedBeforeAttack?: boolean) {
     const { x, y, covered } = this.body;
     const seen = this.actors.filter(actor => actor.hp > 0 && actor.faction === undefined && actor.covered === covered
       && Math.abs(actor.x - x) < 220 && clearShot(x, y - 30, actor.x, actor.y - 30));
     this.crime = { kind, x, y, covered, witnesses: seen.length };
     const before = this.police.level;
-    const observed = this.police.report(this.crime, this.suspect, downedOfficer);
+    const observed = this.police.report(this.crime, this.suspect, observedBeforeAttack);
     if (this.police.level > before) this.sound('radio');
     for (const actor of seen) {
       actor.panic = 4.5;
@@ -353,8 +353,9 @@ export class Sandbox {
       this.stepAt = this.time + 58 / Math.abs(this.body.vx);
       this.sound('step');
     }
+    const observedBeforeAttack = input.fire && this.police.watched(this.suspect);
     const attack = this.armory.step(dt, input, this.body, [...this.actors, ...this.police.officers], this.sound);
-    if (attack?.loud) this.offend('gunfire');
+    if (attack?.loud) this.offend('gunfire', observedBeforeAttack);
     const enemy = attack?.target;
     if (enemy) {
       enemy.dir = this.body.dir;
@@ -364,7 +365,7 @@ export class Sandbox {
       }
       const kind = enemy.role === 'officer' ? attack.killed ? 'officerDown' : 'officerAttacked'
         : enemy.role === 'gang' ? 'gangFight' : attack.killed ? 'civilianDown' : 'assault';
-      this.offend(kind, kind === 'officerDown' ? enemy : undefined);
+      this.offend(kind, observedBeforeAttack);
     }
   }
 

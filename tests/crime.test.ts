@@ -30,6 +30,27 @@ test('A finishing blow is witnessed by the officer it knocks out', () => {
   assert.equal(game.police.last?.x, game.body.x);
 });
 
+test('A shot cannot expand police sight range to make its own knockout observed', () => {
+  const game = new Sandbox();
+  game.actors = [];
+  game.body = bodyAt(980);
+  const officer = actorAt('distant-officer', 1240, 0, 'officer');
+  game.police.officers = [officer];
+  officer.hp = 20;
+  game.police.points = 106;
+  game.armory.supply(2);
+  assert.equal(game.police.level, 3);
+  assert.equal(game.police.watched(game.suspect), false);
+
+  game.step(1 / 60, { ...neutral, fire: true });
+
+  assert.equal(game.armory.ammo.rounds, 7);
+  assert.equal(officer.hp, 0);
+  assert.equal(game.crime?.kind, 'officerDown');
+  assert.equal(game.police.level, 4);
+  assert.equal(game.police.evidence, null);
+});
+
 test('Shop robbery pays once, reports witnesses, and panics the clerk without any mission', () => {
   const game = new Sandbox();
   const shop = businesses[0];

@@ -394,10 +394,8 @@ export class Game {
     if (this.index === 1 || this.index === 3) {
       this.leave();
       this.cars = this.cars.filter(c => c !== this.jobLoaner);
-      const x = this.current.location.x + 26;
-      const lane = [0, -1, 1].find(l => this.cars.every(c => delta(c.yLane, l) > TRAFFIC_LANE_CLEARANCE ||
-        delta(c.x, x) >= (CARS[c.kind].width + CARS.coupe.width) / 2)) ?? 0;
-      const loan = carAt(x, 'coupe', true, lane);
+      const x = this.loanerSpawn(this.current.location.x + 26);
+      const loan = carAt(x, 'coupe', true);
       this.jobLoaner = loan;
       this.cars.push(loan);
       this.board(loan, false);
@@ -417,6 +415,20 @@ export class Game {
       for (const [x, y] of [[9405, ROAD], [9690, ROAD - 70], [10048, ROAD - 52]])
         this.people.push({ x, home: x, y, dir: -1, hp: 70, shot: 0, hit: 0, coat: '#c78668', hostile: true });
     }
+  }
+
+  private loanerSpawn(x: number) {
+    const blocked = [...this.cars, ...this.traffic]
+      .filter(c => c.lane === 0 || Math.abs(c.yLane) <= TRAFFIC_LANE_CLEARANCE)
+      .map(c => {
+        const clearance = (CARS[c.kind].width + CARS.coupe.width) / 2 + Math.abs(c.v) * .35 + 2;
+        return [c.x - clearance, c.x + clearance] as const;
+      })
+      .sort(([leftA], [leftB]) => leftA - leftB);
+    for (const [left, right] of blocked) {
+      if (x >= left && x < right) x = right;
+    }
+    return x;
   }
 
   private finish() {

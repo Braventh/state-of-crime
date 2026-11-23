@@ -117,6 +117,20 @@ test('retrying Cut Across replaces its previous loaner before launch', () => {
   assert.ok(game.car!.x > POINTS.race.x + 26);
 });
 
+test('a parked car at the race start does not push the new loaner into oncoming traffic', () => {
+  const game = new Game({ ...fresh(), completed: 3, x: POINTS.race.x }, () => {});
+  const x = POINTS.race.x + 26;
+  const parked = { ...game.cars[0], x };
+  const oncoming = { ...parked, x: x + 14, v: -125, lane: -1, yLane: -1, dir: -1 };
+  game.cars.push(parked);
+  game.traffic = [oncoming];
+  key('KeyE');
+  ticks(game);
+  assert.equal(game.car!.yLane, 0);
+  assert.ok(game.car!.x - parked.x >= (CARS.coupe.width + CARS[parked.kind].width) / 2);
+  assert.equal(game.car!.hp, CARS.coupe.health);
+});
+
 test('road ends stop the whole vehicle without repeatedly damaging it', () => {
   for (const sign of [-1, 1]) {
     const { game, car } = setup('van');

@@ -82,6 +82,64 @@ test('A checkpoint taken immediately after an edge carjacking can be restored', 
   }
 });
 
+test('Prism paints and saves a stopped vehicle parked beside the player, but not under direct observation', () => {
+  const game = new Sandbox();
+  const [parked, bystander] = game.rides;
+  inShop(game, 'paint');
+  parked.taken = true;
+  parked.x = game.body.x + 34;
+  parked.v = 30;
+  bystander.x = game.body.x + 5;
+  const paint = shopStock.paint[0];
+  assert.match(game.purchaseIssue(paint), /Stop a vehicle/);
+  parked.v = 0;
+  assert.equal(game.garageRide, parked);
+  assert.match(game.prompt, /X  ·  Enter/);
+
+  game.police.points = 10;
+  const officer = game.police.officers[1];
+  officer.x = parked.x + 150;
+  assert.equal(game.police.watched(game.suspect), false);
+  assert.match(game.purchaseIssue(paint), /watching/);
+  assert.match(game.buy(paint), /watching/);
+  assert.equal(game.cash, 140);
+
+  game.police.points = 0;
+  officer.x = 2593;
+  assert.equal(game.police.watched(game.suspect), true);
+  assert.equal(game.buy(paint), '');
+  assert.equal(game.cash, 140 - paint.price);
+  assert.match(game.purchaseIssue(paint), /Already painted/);
+  const saved = decodeSandbox(JSON.stringify(game.snapshot()));
+  assert.ok(saved);
+  const restored = new Sandbox();
+  restored.restore(saved);
+  assert.equal(restored.garageRide?.color, parked.color);
+  assert.equal(restored.ride, null);
+  restored.step(.016, { ...neutral, exit: true });
+  assert.equal(restored.ride?.id, parked.id);
+  assert.equal(restored.crime, null);
+});
+
+test('Shop availability and ammo details update when a weapon is purchased and reserves fill', () => {
+  const game = new Sandbox();
+  const [pistol, , , rifle, ammo] = shopStock.arms;
+  inShop(game, 'arms');
+  assert.equal(game.purchaseIssue(rifle), 'Not enough cash');
+  assert.equal(game.purchaseIssue(ammo), 'Equip a firearm first');
+  assert.equal(game.buy(pistol), '');
+  assert.equal(game.purchaseIssue(pistol), 'Already in your inventory');
+  assert.equal(game.ammoPackRounds, 24);
+
+  game.armory.ammo.reserve = 90;
+  assert.equal(game.ammoPackRounds, 6);
+  assert.equal(game.buy(ammo), '');
+  assert.equal(game.armory.ammo.reserve, 96);
+  assert.equal(game.purchaseIssue(ammo), 'Ammunition reserve full');
+  assert.equal(game.buy(ammo), 'Ammunition reserve full');
+  assert.equal(game.cash, 140 - pistol.price - ammo.price);
+});
+
 test('Storage migrates only compatible V1 data, rejects bad V2 data and protects a newer tab', () => {
   const initial = new Sandbox().snapshot();
   const values = new Map([[SAVE_KEY, JSON.stringify({ ...fresh(), cash: 611, engine: true })]]);

@@ -1,5 +1,5 @@
 import { CARS, clamp, W } from './config.ts';
-import { Armory, clearShot, weapons, type AttackInput, type Drop } from './combat.ts';
+import { Armory, clearShot, weapons, type Actor, type AttackInput, type Drop } from './combat.ts';
 import { businesses, type Business, type Crime, type CrimeKind } from './crime.ts';
 import { blockAt, DISTRICT_WIDTH, SPAWN, STREET } from './district.ts';
 import { Police, type Suspect } from './police.ts';
@@ -54,6 +54,24 @@ export class Sandbox {
   }
   get roadside() { return !this.body.covered && this.body.grounded && this.body.y === STREET; }
   get business() { return this.roadside ? businesses.find(shop => Math.abs(shop.x - this.body.x) < 36) : undefined; }
+  get garageRide() {
+    if (this.business?.id !== 'paint') return;
+    const stopped = (car: Ride) => car.hp > 0 && Math.abs(car.v) <= 28;
+    if (this.ride) return stopped(this.ride) ? this.ride : undefined;
+    let parked: Ride | undefined;
+    let min = 52;
+    for (const car of this.rides) {
+      const gap = Math.abs(car.x - this.body.x);
+      if (!car.taken || !stopped(car) || gap >= min) continue;
+      parked = car;
+      min = gap;
+    }
+    return parked;
+  }
+  get ammoPackRounds() {
+    const { gun, ammo } = this.armory;
+    return Math.min(gun.refill, gun.refill * 4 - ammo.reserve);
+  }
   get availableRide() {
     if (!this.roadside) return;
     let nearest: Ride | undefined;
@@ -71,8 +89,15 @@ export class Sandbox {
     const business = this.business;
     const clerk = business && this.actors.find(actor => actor.id === business.id && actor.hp && Math.abs(actor.x - business.x) < 40);
     if (clerk && !clerk.robbed) return { actor: clerk, amount: business.till, name: business.name, kind: 'shopRobbery' as const };
-    const victim = this.actors.find(actor => actor.role === 'pedestrian' && actor.hp > 0 && !actor.robbed && Math.abs(actor.x - this.body.x) < 37);
-    if (victim) return { actor: victim, amount: 16 + victim.outfit * 5, name: 'Cash taken', kind: 'robbery' as const };
+    let victim: Actor | undefined;
+    let closest = 37;
+    for (const actor of this.actors) {
+      const gap = Math.abs(actor.x - this.body.x);
+      if (actor.role !== 'pedestrian' || !actor.hp || actor.robbed || gap >= closest) continue;
+      victim = actor;
+      closest = gap;
+    }
+    if (victim) return { actor: victim, amount: 16 + victim.outfit * 5, name: 'Pedestrian', kind: 'robbery' as const };
   }
 
   announce(message: string) { this.notice = message; this.noticeTime = 3.2; }
@@ -122,34 +147,42 @@ export class Sandbox {
     if (save.lead !== null) this.police.last = { x: save.lead, y: STREET, identity: save.evidence ?? this.suspect.identity, age: 0 };
   }
 
-  buy(item: Stock) {
+  purchaseIssue(item: Stock) {
     if (!this.shop || this.business !== this.shop || !shopStock[this.shop.id].includes(item)) return 'Shop unavailable';
-    if (this.cash < item.price) return 'Not enough cash';
-    const cosmetic = item.kind === 'paint' || item.kind === 'hair' || item.kind === 'outfit';
-    if (cosmetic && this.police.level && (this.police.spotted || this.police.watched(this.suspect))) return 'Police are watching · lose sight first';
-    if (item.kind === 'outfit') {
-      if (this.outfit === item.value) return 'Already wearing this outfit';
-      this.outfit = item.value;
-    } else if (item.kind === 'hair') {
-      if (this.hair === item.value) return 'Already styled this way';
-      this.hair = item.value;
-    } else if (item.kind === 'paint') {
-      if (!this.ride || Math.abs(this.ride.v) > 28) return 'Bring a vehicle to a stop nearby';
-      if (this.ride.color === item.value) return 'Already painted this color';
-      this.ride.color = item.value;
-    } else if (item.kind === 'gear') {
-      if (this.armory.stock[item.value]) return 'Already in your inventory';
-      this.armory.supply(item.value);
-    } else if (item.kind === 'ammo') {
+    if (item.kind === 'outfit' && this.outfit === item.value) return 'Already wearing this outfit';
+    if (item.kind === 'hair' && this.hair === item.value) return 'Already styled this way';
+    if (item.kind === 'gear' && this.armory.stock[item.value]) return 'Already in your inventory';
+    if (item.kind === 'med' && this.hp === 100) return 'Health is already full';
+    if ((item.kind === 'engine' || item.kind === 'armor') && this[item.kind]) return 'Upgrade already fitted';
+    if (item.kind === 'ammo') {
       if (!this.armory.gun.mag) return 'Equip a firearm first';
-      if (this.armory.ammo.reserve >= this.armory.gun.refill * 4) return 'Ammunition reserve full';
-      this.armory.supply(this.armory.slot);
-    } else if (item.kind === 'med') {
-      if (this.hp === 100) return 'Health is already full';
-      this.hp = Math.min(100, this.hp + 60);
-    } else if (item.kind === 'engine' || item.kind === 'armor') {
-      if (this[item.kind]) return 'Upgrade already fitted';
-      this[item.kind] = true;
+      if (this.ammoPackRounds <= 0) return 'Ammunition reserve full';
+    }
+    if (item.kind === 'paint') {
+      const car = this.garageRide;
+      if (!car) return 'Stop a vehicle you have driven next to the shop';
+      if (car.color === item.value) return 'Already painted this color';
+      if (this.police.level &&
+        (this.police.spotted || this.police.watched(this.suspect) || this.police.watched({ ...this.suspect, x: car.x })))
+        return 'Police are watching · lose sight first';
+    }
+    if ((item.kind === 'outfit' || item.kind === 'hair') && this.police.level &&
+      (this.police.spotted || this.police.watched(this.suspect))) return 'Police are watching · lose sight first';
+    return this.cash < item.price ? 'Not enough cash' : '';
+  }
+
+  buy(item: Stock) {
+    const issue = this.purchaseIssue(item);
+    if (issue) return issue;
+    switch (item.kind) {
+      case 'outfit':
+      case 'hair': this[item.kind] = item.value; break;
+      case 'paint': this.garageRide!.color = item.value; break;
+      case 'gear': this.armory.supply(item.value); break;
+      case 'ammo': this.armory.supply(this.armory.slot); break;
+      case 'med': this.hp = Math.min(100, this.hp + 60); break;
+      case 'engine':
+      case 'armor': this[item.kind] = true; break;
     }
     this.cash -= item.price;
     this.sound('confirm');
@@ -163,12 +196,13 @@ export class Sandbox {
       && Math.abs(actor.x - x) < 220 && clearShot(x, y - 30, actor.x, actor.y - 30));
     this.crime = { kind, x, y, covered, witnesses: seen.length };
     const before = this.police.level;
-    this.police.report(this.crime, this.suspect);
+    const observed = this.police.report(this.crime, this.suspect);
     if (this.police.level > before) this.sound('radio');
     for (const actor of seen) {
       actor.panic = 4.5;
       actor.dir = actor.x < x ? -1 : 1;
     }
+    return { observed, witnesses: seen.length };
   }
 
   hurt(damage: number) {
@@ -179,6 +213,14 @@ export class Sandbox {
   }
 
   get prompt() {
+    const interact = this.interactionPrompt;
+    const target = this.robberyTarget;
+    const rob = target ? 'G  ·  Rob ' + target.name : '';
+    return [interact, rob].filter(Boolean).join(' / ') ||
+      (this.body.covered ? 'Find a lit door to return to the street' : 'Explore Crownwater');
+  }
+
+  private get interactionPrompt() {
     if (this.ride) return Math.abs(this.ride.v) > 28 ? 'Space  ·  Brake before exiting'
       : this.business?.id === 'paint' ? 'E  ·  Prism Motorworks / X  ·  Exit' : 'E  ·  Exit vehicle';
     const pickup = this.pickup;
@@ -190,7 +232,11 @@ export class Sandbox {
     }
     const door = closeDoor(this.body);
     if (door) return `E  ·  ${this.body.covered ? 'Return to street' : 'Enter ' + door.passage.name}`;
-    if (this.business) return `E  ·  ${this.business.name}${this.robberyTarget?.kind === 'shopRobbery' ? ' / G  ·  Rob' : ''}`;
+    const business = this.business;
+    if (business) {
+      const parked = this.garageRide;
+      return `E  ·  ${business.name}${parked ? ' / X  ·  Enter ' + CARS[parked.kind].label : ''}`;
+    }
     const ladder = nearbyLadder(this.body);
     if (ladder) {
       const keys = this.body.y >= ladder.low ? 'W / ↑' : this.body.y <= ladder.high ? 'S / ↓' : 'W S / ↑ ↓';
@@ -198,8 +244,7 @@ export class Sandbox {
     }
     const ride = this.availableRide;
     if (ride) return `E  ·  ${ride.taken ? 'Enter' : 'Steal'} ${CARS[ride.kind].label}`;
-    if (this.robberyTarget) return `G  ·  ${this.robberyTarget.kind === 'shopRobbery' ? 'Rob ' + this.robberyTarget.name : 'Demand cash'}`;
-    return this.body.covered ? 'Find a lit door to return to the street' : 'Explore Crownwater';
+    return '';
   }
 
   step(dt: number, input: SandboxInput) {
@@ -207,13 +252,19 @@ export class Sandbox {
     this.hit = Math.max(0, this.hit - dt);
     this.noticeTime = Math.max(0, this.noticeTime - dt);
     if (!this.hp) return;
-    const target = input.rob && this.robberyTarget;
-    if (target) {
-      target.actor.robbed = true;
-      this.cash += target.amount;
-      this.offend(target.kind);
-      this.announce(target.name + ' · +$' + target.amount);
-      this.sound('reward');
+    if (input.rob) {
+      const target = this.robberyTarget;
+      if (target) {
+        target.actor.robbed = true;
+        this.cash += target.amount;
+        const { observed, witnesses } = this.offend(target.kind);
+        const report = observed ? 'Spotted by police' : witnesses === 1 ? 'Witness calling police' :
+          witnesses ? `${witnesses} witnesses calling police` : 'No witnesses';
+        this.announce(`${target.name} robbed · +$${target.amount} · ${report}`);
+        this.sound('reward');
+      } else {
+        this.announce(this.ride ? 'Exit the vehicle to rob on foot' : 'No robbery target nearby');
+      }
     }
     if (input.use && this.business && !this.pickup && !closeDoor(this.body) &&
       (!this.ride || this.business.id === 'paint' && Math.abs(this.ride.v) <= 28)) {
@@ -245,7 +296,7 @@ export class Sandbox {
 
   private onFoot(dt: number, input: SandboxInput) {
     const pickup = input.use && this.pickup;
-    const car = input.use && !pickup && !closeDoor(this.body) && this.availableRide;
+    const car = !pickup && !closeDoor(this.body) && (input.use ? this.availableRide : input.exit && this.garageRide);
     if (car) {
       this.ride = car;
       this.armory.impact = null;

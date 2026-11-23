@@ -103,8 +103,29 @@ kbd { background: #4d364d; padding: .06em .34em; border: 1px solid #855c72; colo
 @media (max-width: 550px) {
   .mast, footer { font-size: 8px; letter-spacing: .02em; height: 35px; }
   footer i { margin: 0; width: 4px; }
-  .cover { top: 9%; }
-  .cover p { max-width: 45cqw; margin: .6cqw 0 1.2cqw; }
-  .title-controls { bottom: 2%; }
-  .panel { width: 77%; }
+  .frame:has(> .overlay:not([hidden])) { aspect-ratio: auto; background: #21182a; }
+  .frame:has(> .overlay:not([hidden])) canvas { height: auto; inset: auto 0 0; }
+  .overlay { position: relative; min-height: min(64svh, 340px); padding: 5cqw; }
+  .overlay.title {
+    display: grid;
+    gap: 4cqw;
+    place-items: start stretch;
+    background: linear-gradient(90deg, #1d1424f5, #241a2a3b), linear-gradient(0deg, #201828, transparent 28%);
+  }
+  .cover, .title-controls { position: static; width: auto; }
+  .cover h1 { margin: 4cqw 0; }
+  .cover p, .panel p { max-width: 36ch; font-size: 12px; }
+  .cover p { margin: 1.4cqw 0 3cqw; }
+  .stamp { display: none; }
+  .title-controls { font-size: 10px; }
+  .eyebrow { font-size: 9px; }
+  .panel { width: 100%; max-height: none; padding: 4cqw; }
+  .panel h2 { font-size: max(26px, 5.2cqw); }
+  .panel label { font-size: 13px; }
+  .panel .toggle { min-height: 32px; }
+  .buttons { gap: 6px; }
+  .buttons button, .garage-list button { font-size: 12px; min-height: 44px; padding: 6px 9px; }
+  .garage-list { grid-template-columns: 1fr; }
+  .garage-list button span { font-size: 10px; }
+  .pause-button { top: max(19%, 34px); min-width: 44px; min-height: 44px; font-size: 14px; }
 }

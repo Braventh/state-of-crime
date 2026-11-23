@@ -211,9 +211,8 @@ function frame(now: number) {
   label('block', game.block.name);
   get('location').style.left = `${(100 * game.body.x / DISTRICT_WIDTH).toFixed(2)}%`;
   label('prompt', started ? game.noticeTime && game.notice ? game.notice : game.prompt : 'No jobs. No fixed route.');
-  const { gun, ammo, loading } = game.armory;
   label('equipment', game.ride ? `${Math.round(Math.abs(game.ride.v) / 3.9)} mph · ${Math.ceil(game.ride.hp)} integrity`
-    : gun.mag ? `${gun.name} · ${loading ? 'Reloading' : ammo.rounds + ' / ' + ammo.reserve}` : gun.name);
+    : game.armory.readout);
   label('status', `HP ${game.hp} · $${game.cash}`);
   label('stars', '★'.repeat(police.level) + '☆'.repeat(5 - police.level));
   label('pursuit', police.level ? police.mode + ' · ' + police.response.name : 'Crownwater / Free roam');

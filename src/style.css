@@ -150,6 +150,22 @@ kbd { background: #4d364d; padding: .06em .34em; border: 1px solid #855c72; colo
   .stage:has(> .overlay:not([hidden])) + .hud-dock { display: none; }
 }
 @media (max-height: 520px) {
-  #app:has(.overlay[hidden]) .mast { height: 16px; }
+  #app:has(.overlay[hidden]) {
+    display: flex;
+    flex-direction: column;
+    max-height: 100svh;
+  }
+  #app:has(.overlay[hidden]) .mast { flex: none; height: 16px; }
   #app:has(.overlay[hidden]) footer { display: none; }
+  .frame:has(.overlay[hidden]) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .stage:has(> .overlay[hidden]) { min-height: 0; background: var(--ink); }
+  .stage:has(> .overlay[hidden]) canvas { width: auto; max-width: 100%; margin-inline: auto; }
+  .stage:has(> .overlay[hidden]) + .hud-dock { flex: none; }
+}
+@media (max-height: 350px) {
+  .stage:has(> .overlay[hidden]) :is(.notice, .pause-button) { top: max(19%, 48px); }
 }

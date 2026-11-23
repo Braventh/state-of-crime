@@ -38,6 +38,24 @@ test('Fire escapes lead to playable rooftops and a running jump clears the roof 
   assert.ok(game.body.x > roofs[3].left);
 });
 
+test('The fire escape prompt offers a usable direction at the edge of ladder reach', () => {
+  const game = new Sandbox();
+  const ladder = ladders[0];
+  game.body = bodyAt(ladder.x + 25);
+  assert.doesNotMatch(game.prompt, /Climb fire escape/);
+  step(game, 1, { vertical: -1 });
+  assert.equal(game.body.y, STREET);
+
+  game.body.x -= 1;
+  assert.match(game.prompt, /^W \/ ↑  ·  Climb fire escape$/);
+  step(game, 12, { vertical: -1 });
+  assert.ok(game.body.y < STREET);
+  assert.match(game.prompt, /^W S \/ ↑ ↓  ·  Climb fire escape$/);
+  step(game, 65, { vertical: -1 });
+  assert.equal(game.body.y, ladder.high);
+  assert.match(game.prompt, /^S \/ ↓  ·  Climb fire escape$/);
+});
+
 test('A covered passage connects two street entrances without resetting the player', () => {
   const game = new Sandbox();
   const [entry, exit] = passages[0].doors;

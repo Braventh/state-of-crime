@@ -7,14 +7,15 @@ export interface Person { x: number; home: number; y: number; dir: number; hp: n
 export interface Unit { x: number; v: number; lane: number; dir: number; heavy: boolean; target: number }
 export interface Dust { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 type Action = 'confirm' | 'door' | 'alert' | 'hit' | 'reward' | 'jump' | 'step' | 'bad';
-type JobStatus = { time: number; drove: boolean; beacon: boolean; rival: number };
+type JobStatus = { time: number; drove: boolean; driveStart: number; beacon: boolean; rival: number };
 interface Signal { title: string; detail: string; kind: 'good' | 'bad' | 'info'; age: number }
 export type Purchase = keyof typeof UPGRADES | 'compact';
 
 const carAt = (x: number, kind: CarKind, owned = false, lane = 0): Vehicle =>
   ({ x, kind, owned, v: 0, lane, yLane: lane, dir: 1, hp: CARS[kind].health });
+const STARTER_KITE_X = 720;
 const spots: [number, CarKind, number][] = [
-  [720, 'compact', 0], [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
+  [1590, 'van', 1], [2660, 'compact', 1], [3410, 'coupe', 0],
   [4300, 'van', 1], [5110, 'compact', 1], [6080, 'coupe', 1], [7150, 'compact', 1],
   [8540, 'van', 0], [9240, 'compact', 1], [10900, 'coupe', 0],
 ];
@@ -31,7 +32,8 @@ export class Game {
   lastSeen = START;
   hide = false;
   units: Unit[] = [];
-  cars = spots.map(([x, kind, lane]) => carAt(x, kind, false, lane));
+  private starterKite = carAt(STARTER_KITE_X, 'compact');
+  cars = [this.starterKite, ...spots.map(([x, kind, lane]) => carAt(x, kind, false, lane))];
   traffic: Vehicle[] = [];
   people: Person[] = [];
   dust: Dust[] = [];
@@ -85,7 +87,8 @@ export class Game {
     switch (this.index) {
       case 0: return this.job.drove
         ? { ...POINTS.delivery, text: 'Deliver the canister to Tidelane' }
-        : { ...POINTS.contact, x: 720, text: 'Borrow the orange Kite · E' };
+        : { x: this.starterKite.x, name: 'Kite Compact',
+          text: this.car === this.starterKite ? 'Drive the orange Kite' : 'Borrow the orange Kite · E' };
       case 1: return { ...POINTS.refuge, text: this.heat ? 'Lose the tail · outrun it or hide at Bluehour' : 'Check in at Bluehour · E' };
       case 2: return this.job.beacon
         ? { ...POINTS.refuge, text: this.heat ? 'Escape the search and return to Bluehour' : 'Return the cartridge to Bluehour · E' }
@@ -224,7 +227,8 @@ export class Game {
     }
     if ((brake || c.hp < 25 || Math.abs(c.v) > top * .7) && Math.random() < dt * 22)
       this.sparks(c.x - c.dir * 23, ROAD + c.yLane * TUNE.laneOffset, c.hp < 25 ? '#3c3444' : '#b89b8d', 1);
-    if (this.job && this.index === 0) this.job.drove ||= delta(c.x, 720) > 90;
+    if (this.job && this.index === 0 && c === this.starterKite)
+      this.job.drove ||= delta(c.x, this.job.driveStart) > 90;
   }
 
   private walk(dt: number) {
@@ -330,7 +334,12 @@ export class Game {
 
   private startJob() {
     if (!this.current) return;
-    this.job = { time: 0, drove: false, beacon: false, rival: 0 };
+    if (this.index === 0 && this.starterKite.hp <= 0) {
+      this.cars = this.cars.filter(c => c !== this.starterKite);
+      this.starterKite = carAt(STARTER_KITE_X, 'compact');
+      this.cars.push(this.starterKite);
+    }
+    this.job = { time: 0, drove: false, driveStart: this.starterKite.x, beacon: false, rival: 0 };
     this.say(this.current.title, this.current.line);
     this.sound('confirm');
     if (this.index === 1 || this.index === 3) {

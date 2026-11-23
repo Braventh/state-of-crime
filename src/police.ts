@@ -101,7 +101,7 @@ export class Police {
     const weight = (activePursuit && sustainedSeverity[crime.kind]) || severity[crime.kind];
     this.points = Math.min(limit, this.points + Math.ceil(weight * factor * (activePursuit ? .52 : 1)));
     if (observed) this.remember(s);
-    else if (!rapid && (crime.witnesses || noise || crime.kind === 'theft' || crime.kind === 'carjacking')) {
+    else if (crime.witnesses || (!rapid && (noise || crime.kind === 'theft' || crime.kind === 'carjacking'))) {
       this.sinceSeen = Math.min(this.sinceSeen, 2);
       this.reports.push({ x: Math.round(crime.x / 32) * 32, y: crime.y, identity: { ...s.identity }, age: 0,
         delay: crime.witnesses ? .8 : 1.25 });

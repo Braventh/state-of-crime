@@ -90,6 +90,25 @@ test('Observed theft adds heat during maximum response without unlocking it on i
   assert.equal(police.points, 200);
 });
 
+test('Rapid gunfire hits keep civilian witness leads without adding full heat', () => {
+  const police = new Police();
+  police.officers = [];
+  const first = suspect(1280);
+  const second = suspect(1344);
+  const hit = { kind: 'assault', y: STREET, covered: false, witnesses: 1 } as const;
+  assert.equal(police.report({ ...hit, x: first.x }, first, undefined, true), false);
+  const firstHeat = police.points;
+  police.step(.15, first, noOp, noOp);
+  assert.equal(police.report({ ...hit, x: second.x }, second, undefined, true), false);
+  assert.equal(police.points - firstHeat, 5);
+
+  police.step(.66, second, noOp, noOp);
+  assert.equal(police.last?.x, first.x);
+  police.step(.15, second, noOp, noOp);
+  assert.equal(police.spotted, false);
+  assert.equal(police.last?.x, second.x);
+});
+
 test('Response cruiser enters outside the camera and refuses to conjure a unit in a narrow edge gap', () => {
   const police = new Police();
   const person = suspect(1690);

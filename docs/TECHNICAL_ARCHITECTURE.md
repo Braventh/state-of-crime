@@ -1,12 +1,9 @@
-# Technical architecture
+# Phase 1 technical architecture
 
-- `config.ts`: world strip, landmarks, platform collision surfaces, tunables, vehicle catalog and job data.
-- `game.ts`: session simulation. The loop advances player/vehicle dynamics, NPCs, pursuit, mission state and deterministic location routing; particles are cosmetic.
-- `input.ts`: held keys and single-frame edges, cleared on focus loss and mode changes.
-- `art.ts`: original layered Canvas 2D world, sprites, signs and feedback at a fixed 960×540 logical resolution; visible entities selected by camera.
-- `main.ts` / `style.css`: browser scene shell, pause and shop overlays, game status, responsive scaling.
-- `audio.ts`: synthesized cues, engine/siren oscillators and original sequenced score; wakes after an interaction.
-- `save.ts`: separate validated, versioned checkpoint and settings records in localStorage; invalid checkpoint disables Continue, and storage exceptions do not interrupt play.
-- Vite emits relative links for static HTTP hosting. GitHub Pages workflow verifies tests/builds on main and publishes the build when Pages is enabled with GitHub Actions.
-
-Pause and focus loss suspend simulation. Delta is clamped to 34 ms to avoid tunneling on large frame gaps. New Game, mission success and garage purchases/service are safe save points. In-progress jobs, immediate heat, active car position and damage do not persist.
+- **Browser entry:** `index.html` loads `src/sandbox-main.ts`. It owns the DOM dock, menus, shop overlay, frame loop, storage and settings. `input.ts` keeps held and rising-edge keys and resets on blur.
+- **Simulation:** `sandbox.ts` coordinates movement, attacks, world interactions, witnesses, police, economy and snapshots. It accepts explicit frame input and a sound callback, allowing Node tests without a browser.
+- **World:** `district.ts` declares street, floor, fire-escape and passage geometry. `traversal.ts` resolves acceleration, jumps and room boundaries. `vehicles.ts` implements civilian traffic, vehicle tuning and shared collision rules.
+- **Encounters:** `combat.ts` owns weapon data, ammo transfers, hit detection and floor occlusion. `street-life.ts` owns civilians, shopkeepers and gang behaviors. `crime.ts` describes crimes and businesses; `police.ts` owns evidence, response tiers, foot/cruiser behavior, and recognition. `shops.ts` defines the stock catalogue.
+- **Presentation:** `district-art.ts` paints scenery, traversable surfaces and cutaways, with a cached facade layer. `character-art.ts` draws layered illustrated anatomy, clothes, hairstyles and pose variants. `sandbox-art.ts` draws characters, vehicles, pickups, traces and warnings using camera culling. The inherited skyline, road and vehicle illustration helpers share the same palette. `audio.ts` synthesizes ambience, engine, music, sirens and cues through Web Audio.
+- **Storage:** `sandbox-save.ts` validates each V2 checkpoint before loading. It uses a separate versioned localStorage key, optionally imports V1 cash and upgrade flags, and protects against stale-tab writes. A blocked browser write leaves an in-memory checkpoint. Saved data includes money, health, equipped look, weapons and ammunition, upgrades, reachable region, spent robbery targets, defeated NPCs, remaining pickups, changed vehicles, and police heat/evidence. Settings have their own key.
+- **Build:** TypeScript and Vite output a static client with relative asset paths. The V1 entry and campaign modules remain as historical regression coverage; Vite does not ship that entry or its campaign simulation in the V2 browser bundle.

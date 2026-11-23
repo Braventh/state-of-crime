@@ -24,7 +24,7 @@ function type(c: Ctx, copy: string, x: number, y: number, color: string, size: n
 function orb(c: Ctx, x: number, y: number, r: number, color: string) {
   c.fillStyle = color; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
 }
-function sky(c: Ctx, cam: number, clock: number) {
+export function sky(c: Ctx, cam: number, clock: number) {
   const g = c.createLinearGradient(0, 0, 0, 372);
   g.addColorStop(0, '#17152f'); g.addColorStop(.36, '#38294d'); g.addColorStop(.73, '#a85e70'); g.addColorStop(1, '#f69d79');
   c.fillStyle = g; c.fillRect(0, 0, W, H);
@@ -57,7 +57,7 @@ function sky(c: Ctx, cam: number, clock: number) {
     box(c, color, x + Math.sin(clock * .49 + i) * 9, y, 4 + n(i + 16) * 33, 1);
   }
 }
-function horizon(c: Ctx, cam: number) {
+export function horizon(c: Ctx, cam: number) {
   for (const [factor, tone] of [[.33, '#76516e'], [.59, '#45324f']] as const) {
     for (let i = Math.floor(cam / 60) - 21; i < (cam + W) / 60 + 22; i++) {
       const wx = i * 60;
@@ -204,7 +204,7 @@ function lamp(c: Ctx, x: number, h: number) {
   cone.addColorStop(0, '#ffd2962e'); cone.addColorStop(1, '#ffd29600');
   shape(c, cone, x + 18, y + 2, x + 29, y + 2, x + 68, 403, x - 17, 403);
 }
-function ground(c: Ctx, cam: number) {
+export function ground(c: Ctx, cam: number) {
   box(c, '#674a5d', 0, 393, W, 15);
   box(c, '#c0877e', 0, 397, W, 3);
   box(c, '#3a3043', 0, 403, W, 83);
@@ -263,7 +263,7 @@ function human(c: Ctx, x: number, y: number, dir: number, gait: number, coat: st
   box(c, '#ca8e78', 8 - stride, -20, 4, 4);
   c.restore();
 }
-function vehicle(c: Ctx, x: number, y: number, kind: Vehicle['kind'], dir: number, v: number, color: string,
+export function vehicle(c: Ctx, x: number, y: number, kind: Vehicle['kind'], dir: number, v: number, color: string,
   clock: number, police = false, heavy = false, player = false) {
   const spec = CARS[kind], w = spec.width, h = spec.height;
   c.save(); c.translate(Math.round(x), Math.round(y)); c.scale(dir, 1);

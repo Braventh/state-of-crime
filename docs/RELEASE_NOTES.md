@@ -1,9 +1,13 @@
-# Release notes · 0.1.0
+# Phase 1 release scope
 
-An original dusk-set vertical slice: three connected districts, five jobs, three drivable vehicle types, pursuit with four heat levels, three fictional tools, pedestrian and road traffic, garage upgrades, navigation HUD, synthesized score/effects and local checkpointing. The static build requires no account, network assets or backend.
+The playable V2 baseline covers one region, one protagonist, three gangs, five stores, four firearm categories, fists and a pipe, three civilian vehicle sizes, a five-star police response, three two-ended covered spaces, vertical routes, customization, settings and local checkpoints.
 
-**Partial:** Traffic deviates during vehicle collisions and pedestrians flee danger; the world is a compressed side view in one corridor. Art and audio are original procedural output, not a full sprite atlas or orchestral production. Settings offer single-channel volume, mute and reduced-motion effects.
+## Known limitations
 
-**Deferred:** Reedwake Basin, Sawtooth Junction, separate interiors and branch roads, full weather and daylight cycle, boats/bikes/trucks, touch controls, ladders, a larger economy and repeatable job board.
-
-**Release caveat:** State of Crime is an uncleared working title. GitHub Pages requires the repo's Pages source to be set to GitHub Actions; no public Pages release or trademark clearance is claimed. See [playtest results](PLAYTEST_REPORT.md) for actual coverage.
+- Keyboard and desktop browser first. No touch controls, gamepad mapping, multiplayer, cloud saves, remapping, or cross-browser certification.
+- The four Crownwater blocks share one region. No expansion regions are accessible yet.
+- AI uses side-scrolling ground navigation. Police search on foot and in vehicles but do not climb ladders or navigate passages. Those routes provide reliable sight breaks by design. An offscreen reinforcement can be delayed at a map edge or while moving quickly.
+- Styling provides three player outfits, three hairstyles and three paint colors. No second protagonist or modular clothing slots.
+- No drive-by combat. Stores freeze simulation while their UI is open. Weapons and bodies are stylized and non-graphic.
+- Checkpoint reload restores outdoor position at street height (not a mid-jump, rooftop pose, or vehicle momentum). It preserves heat and last known location, but not the exact position of every live NPC, patrol or projectile.
+- This prototype has not had an independent accessibility or balance review. See [executed checks](./PLAYTEST_REPORT.md) for tested scope.

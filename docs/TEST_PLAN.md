@@ -1,15 +1,10 @@
-# Test plan
+# Phase 1 playtest checklist
 
-Use Node 22.12+, run `npm ci`, `npm test`, `npm run build` and `npm run preview -- --port 4173`. Test the generated production site on an HTTP origin. Use a separate browser profile or clear this game's two keys before a fresh run.
+Run `npm test`, then `npm run build` and `npm run preview -- --port 4176`. Open Chrome, start a New Game and use the keys from [README](../README.md). For executed results see [PLAYTEST_REPORT.md](./PLAYTEST_REPORT.md).
 
-1. Verify title/New Game, help, pause/resume (including focus loss), settings changes and settings persistence.
-2. Follow Mara's waypoint, accept First Light, enter the compact, drive and deliver. Confirm distance/direction, speed, reward and checkpoint.
-3. For Tail Lights, confirm level-2 units pursue, drive out of the search area, and check in. In free roam, escalate by repeatedly borrowing cars or striking nearby NPCs; verify heat 1–4 and attacks at high heat.
-4. For Dead Air, travel back to Signal Exchange, acquire the cartridge on foot, enter Bluehour refuge while wanted, wait and exit, then hand off. Compare search and refuge escape.
-5. Start Cut Across, try waiting to fail, restart, avoid collisions as needed and win. Compare lane response and braking with the compact, coupe and van.
-6. At Breakwater, accept Last Transmission; jump between platforms, use tools against sentries, retrieve the beacon from its crate, return and confirm campaign completion.
-7. Purchase and select a van and upgrade at Sidecar; use restock and stage ride. Check cash, ownership, return after hard reload, and resume via Continue.
-8. Make a corrupt checkpoint and reload; Continue should be disabled, settings preserved, and New Game recoverable. Unit tests cover format and validation.
-9. Resize the frame and inspect HUD/menus, run with reduced motion, and check for console errors. Chrome desktop is the initial target; record other engines/device types only when exercised.
-   - At 390×844 and 640×360, start First Light, exit and re-enter the borrowed Kite to reach heat 2, then switch to the lowest lane and wait for a patrol. Confirm the RAM cue is visible before impact and that the objective, hint, exit prompt, and speed/integrity readout are all unobscured.
-   - At 568×280, board the Kite and verify that the playfield and entire driving HUD fit without scrolling.
+- [ ] **14.1 — Sandbox:** Walk through all four blocks. Pick up the pipe on Lantern Row. Fight a pedestrian, then provoke a gang near Rainline Market or Needle Alley. Demand cash with G on a pedestrian and rob a storefront; verify money and no repeat payout. Steal a parked car and a slow occupied car; make a lane change, brake and exit.
+- [ ] **14.2 — Combat:** Hit a target with fists, then switch to pipe and check damage feedback. Buy or collect a firearm, aim up/down, fire, switch and reload. Compare rounds and reserve. Try all four firearm categories. Verify a floor blocks a shot and that combat stays readable without combos.
+- [ ] **14.3 — Police:** Compare heat after one minor offense and a serious or witnessed crime. Escalate to five stars; observe on-foot response, cruisers, a ram tell and an open lane past a roadblock. Remain exposed briefly; stars must not drop. Break sight via roof geometry or a lit passage, observe the switch to search, and wait until the search clears.
+- [ ] **14.4 — Identity:** Buy an outfit at Velvet Loom and hair at Copper Comb. Compare silhouettes. Stop a car at Prism Motorworks and buy paint. Try the same purchase while wanted and in direct sight (must fail); try again unseen (must succeed without resetting the stars). At similar distance compare recognition before and after a change.
+- [ ] **14.5 — Presentation:** Traverse two fire escapes and jump a roof gap. Use one underground entrance and a different exit. Check that context and warnings stay readable without covering the character. Compare a typical desktop window with a short landscape viewport.
+- [ ] **14.6 — Technical:** Save while equipped, reload and Continue. Confirm progress persisted and that cancelling New Game keeps it. Replace test-local data with an invalid JSON value and reload; game must still start. Check console and record frame pace in a busy scene rather than a static menu.

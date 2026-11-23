@@ -9,16 +9,23 @@ export class AudioBed {
   private sirenGain?: GainNode;
   private streetGain?: GainNode;
   private streetFilter?: BiquadFilterNode;
+  private music?: GainNode;
+  private active = false;
   private nextNote = 0;
   private beat = 0;
+  private settings: Settings;
 
-  constructor(private settings: Settings) {}
+  constructor(settings: Settings) { this.settings = settings; }
 
   wake() {
     if (!this.audio) {
       const a = this.audio = new AudioContext();
       const m = this.master = a.createGain();
+      m.gain.value = this.settings.mute ? 0 : this.settings.volume;
       m.connect(a.destination);
+      this.music = a.createGain();
+      this.music.gain.value = 0;
+      this.music.connect(m);
       this.engine = a.createOscillator();
       this.engine.type = 'triangle';
       this.engineGain = a.createGain();
@@ -52,8 +59,8 @@ export class AudioBed {
     if (this.master && this.audio) this.master.gain.setTargetAtTime(this.settings.mute ? 0 : this.settings.volume, this.audio.currentTime, .035);
   }
 
-  private tone(hz: number, length: number, voice: OscillatorType, volume: number, wait = 0, final = hz) {
-    if (!this.audio || !this.master) return;
+  private tone(hz: number, length: number, voice: OscillatorType, volume: number, wait = 0, final = hz, output = this.master) {
+    if (!this.audio || !output) return;
     const a = this.audio, at = a.currentTime + wait;
     const osc = a.createOscillator(), env = a.createGain();
     osc.type = voice;
@@ -62,7 +69,7 @@ export class AudioBed {
     env.gain.setValueAtTime(.0001, at);
     env.gain.exponentialRampToValueAtTime(volume, at + .025);
     env.gain.exponentialRampToValueAtTime(.0001, at + length);
-    osc.connect(env).connect(this.master);
+    osc.connect(env).connect(output);
     osc.start(at); osc.stop(at + length + .01);
   }
 
@@ -81,8 +88,13 @@ export class AudioBed {
   }
 
   step(speed: number, heat: number, riding: boolean, active: boolean) {
-    if (!this.audio || !this.engine || !this.engineGain || !this.siren || !this.sirenGain) return;
+    if (this.audio?.state !== 'running' || !this.engine || !this.engineGain || !this.siren || !this.sirenGain) return;
+    if (!active && !this.active) return;
     const t = this.audio.currentTime;
+    if (active !== this.active) {
+      this.active = active;
+      this.music?.gain.setTargetAtTime(active ? 1 : 0, t, .025);
+    }
     this.engine.frequency.setTargetAtTime(43 + speed * .29, t, .08);
     this.engineGain.gain.setTargetAtTime(active && riding ? .046 + speed / 14000 : 0, t, .09);
     this.siren.frequency.setTargetAtTime(570 + Math.sin(t * 6) * 160, t, .04);
@@ -93,8 +105,8 @@ export class AudioBed {
     this.nextNote = t + .36;
     const sequence = [73.42, 0, 73.42, 110, 69.3, 0, 69.3, 87.31, 65.41, 0, 65.41, 98, 69.3, 0, 69.3, 103.83];
     const note = sequence[this.beat % sequence.length];
-    if (note) this.tone(note, .56, 'triangle', this.beat % 4 === 0 ? .078 : .047);
-    if (note && this.beat % 2 === 0) this.tone(note * 4, .28, 'sine', .027);
+    if (note) this.tone(note, .56, 'triangle', this.beat % 4 === 0 ? .078 : .047, 0, note, this.music);
+    if (note && this.beat % 2 === 0) this.tone(note * 4, .28, 'sine', .027, 0, note * 4, this.music);
     this.beat += 1;
   }
 }

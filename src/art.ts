@@ -77,8 +77,8 @@ function horizon(c: Ctx, cam: number) {
       box(c, tone, x + 7, y - 6 - n(i + 9) * 9, w * .56, 15);
       if (i % 3 === 0) box(c, tone, x + w * .47, y - 21, 2, 24);
       for (let row = y + 12; row < 340; row += 13) {
-        for (let col = x + 5; col < x + w - 4; col += 8)
-          if (n(i + row * .8 + col) > .51) box(c, factor > .4 ? '#865472' : '#9c6477', col, row, 2, 4);
+        for (let col = 5; col < w - 4; col += 8)
+          if (n(i + row * .8 + wx + col) > .51) box(c, factor > .4 ? '#865472' : '#9c6477', x + col, row, 2, 4);
       }
     }
   }

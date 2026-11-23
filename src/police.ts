@@ -72,10 +72,10 @@ export class Police {
       ...this.cruisers.filter(c => c.ride.hp > 0).map(({ ride }) => ({ x: ride.x, y: STREET })),
     ];
   }
-  watched(s: Suspect, range = Math.max(160, this.response.range)) {
+  watched(s: Suspect, range?: number) {
     return !s.covered && this.lines().some(a => this.line(a, s, range));
   }
-  private line(a: { x: number; y: number }, s: Suspect, range: number) {
+  private line(a: { x: number; y: number }, s: Suspect, range = Math.max(160, this.response.range)) {
     return !s.covered && Math.hypot(a.x - s.x, (a.y - s.y) * 1.25) <= range
       && clearShot(a.x, a.y - 33, s.x, s.y - 31);
   }
@@ -86,8 +86,8 @@ export class Police {
       return this.line(a, s, Math.max(this.level >= 4 ? 65 : 33, range));
     });
   }
-  report(crime: Crime, s: Suspect) {
-    const observed = this.watched(s);
+  report(crime: Crime, s: Suspect, downedOfficer?: Actor) {
+    const observed = this.watched(s) || (downedOfficer !== undefined && this.line(downedOfficer, s));
     const noise = crime.kind === 'gunfire' || crime.kind === 'damage' || crime.kind === 'wreck';
     const rapid = noise && this.clock - this.reportedNoiseAt < .32;
     if (noise && !rapid) this.reportedNoiseAt = this.clock;

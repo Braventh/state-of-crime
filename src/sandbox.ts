@@ -203,13 +203,13 @@ export class Sandbox {
     return '';
   }
 
-  offend(kind: CrimeKind) {
+  offend(kind: CrimeKind, downedOfficer?: Actor) {
     const { x, y, covered } = this.body;
     const seen = this.actors.filter(actor => actor.hp > 0 && actor.faction === undefined && actor.covered === covered
       && Math.abs(actor.x - x) < 220 && clearShot(x, y - 30, actor.x, actor.y - 30));
     this.crime = { kind, x, y, covered, witnesses: seen.length };
     const before = this.police.level;
-    const observed = this.police.report(this.crime, this.suspect);
+    const observed = this.police.report(this.crime, this.suspect, downedOfficer);
     if (this.police.level > before) this.sound('radio');
     for (const actor of seen) {
       actor.panic = 4.5;
@@ -362,8 +362,9 @@ export class Sandbox {
         for (const actor of this.actors) if (actor.faction === enemy.faction) actor.hostile = true;
         if (attack.killed) this.drops.push(gangLoot(enemy));
       }
-      this.offend(enemy.role === 'officer' ? attack.killed ? 'officerDown' : 'officerAttacked'
-        : enemy.role === 'gang' ? 'gangFight' : attack.killed ? 'civilianDown' : 'assault');
+      const kind = enemy.role === 'officer' ? attack.killed ? 'officerDown' : 'officerAttacked'
+        : enemy.role === 'gang' ? 'gangFight' : attack.killed ? 'civilianDown' : 'assault';
+      this.offend(kind, kind === 'officerDown' ? enemy : undefined);
     }
   }
 

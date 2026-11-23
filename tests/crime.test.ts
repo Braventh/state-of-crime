@@ -10,6 +10,26 @@ import { makeRide } from '../src/vehicles.ts';
 
 const neutral = { side: 0, vertical: 0 };
 
+test('A finishing blow is witnessed by the officer it knocks out', () => {
+  const game = new Sandbox();
+  game.actors = [];
+  game.body = bodyAt(980);
+  const officer = game.police.officers[0];
+  game.police.officers = [officer];
+  officer.hp = 20;
+  game.police.points = 145;
+  assert.equal(game.police.level, 4);
+  assert.equal(game.police.watched(game.suspect), true);
+
+  game.step(1 / 60, { ...neutral, fire: true });
+
+  assert.equal(officer.hp, 0);
+  assert.equal(game.crime?.kind, 'officerDown');
+  assert.equal(game.crime?.witnesses, 0);
+  assert.equal(game.police.level, 5);
+  assert.equal(game.police.last?.x, game.body.x);
+});
+
 test('Shop robbery pays once, reports witnesses, and panics the clerk without any mission', () => {
   const game = new Sandbox();
   const shop = businesses[0];

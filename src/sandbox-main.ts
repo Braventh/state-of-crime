@@ -4,6 +4,7 @@ import type { WeaponId } from './combat.ts';
 import { H, W } from './config.ts';
 import { DISTRICT_WIDTH } from './district.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
+import { bindNewGameConfirmation } from './new-game.ts';
 import { Sandbox } from './sandbox.ts';
 import { renderSandbox } from './sandbox-art.ts';
 import { recoverCheckpoint, sandboxStorage, type SandboxSave } from './sandbox-save.ts';
@@ -52,6 +53,14 @@ app.innerHTML = `
       </section>
     </div>
   </section>
+  <dialog id="confirm-new-game" class="card" aria-labelledby="confirm-new-game-title">
+    <h1 id="confirm-new-game-title">Start a new game?</h1>
+    <p class="deck">This replaces your Crownwater checkpoint.</p>
+    <div class="menu-actions">
+      <button id="cancel-replace-sandbox" type="button" autofocus>Cancel</button>
+      <button id="replace-sandbox" class="primary" type="button">Replace and start</button>
+    </div>
+  </dialog>
   <footer class="dock"><div class="district-readout"><strong id="block">Lantern Row</strong>
     <div class="strip-map" aria-hidden="true"><span id="location"></span></div></div>
     <span id="prompt"></span><span id="equipment"></span><span id="status"></span></footer>`;
@@ -132,9 +141,8 @@ play.onclick = () => {
   if (started) setRunning(true);
   else begin(checkpoint);
 };
-newGame.onclick = () => {
-  if (window.confirm('Start a new game and replace this Crownwater checkpoint?')) begin(null, true);
-};
+bindNewGameConfirmation(newGame, get<HTMLDialogElement>('confirm-new-game'),
+  get('cancel-replace-sandbox'), get('replace-sandbox'), () => begin(null, true));
 function pausePlay() {
   if (!running || game.shop) return;
   save();

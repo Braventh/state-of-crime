@@ -1,8 +1,8 @@
-import { CARS, GARAGE_TUNE, HIDEOUTS, JOBS, LIMIT, PLATFORMS, POINTS, ROAD, START, TOOLS, TUNE, UPGRADES, W, clamp, toward, type CarKind } from './config.ts';
+import { CARS, EXCHANGE_ROOF, GARAGES, GARAGE_TUNE, HIDEOUTS, JOBS, LIMIT, PLATFORMS, POINTS, ROAD, START, TOOLS, TUNE, UPGRADES, W, clamp, toward, type CarKind } from './config.ts';
 import { held, tap } from './input.ts';
-import { storeSave, type Progress } from './save.ts';
+import { checkpointWriter, type Progress } from './save.ts';
 
-export interface Vehicle { x: number; v: number; lane: number; yLane: number; dir: number; hp: number; kind: CarKind; owned: boolean }
+export interface Vehicle { x: number; v: number; lane: number; yLane: number; dir: number; hp: number; kind: CarKind; owned: boolean; personal?: true }
 export interface Person { x: number; home: number; y: number; dir: number; hp: number; hit: number; shot: number; hostile: boolean; coat: string }
 export interface Unit { x: number; v: number; lane: number; dir: number; heavy: boolean; ramAt: number; readyAt: number }
 export interface Dust { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
@@ -25,6 +25,7 @@ const spots: [number, CarKind, number][] = [
 const lanes = [-1, 0, 1];
 const coats = ['#b0dbaf', '#e7a173', '#9b93d9', '#d5677d', '#62a7b2'];
 const delta = (a: number, b: number) => Math.abs(a - b);
+const garageNear = (x: number) => GARAGES.find(point => delta(point.x, x) < 67);
 
 export class Game {
   body = { x: START, y: ROAD, vx: 0, vy: 0, dir: 1, ground: true };
@@ -56,17 +57,21 @@ export class Game {
   clock = 0;
   camera = 0;
   flash = 0;
-  garage = false;
+  garage: (typeof GARAGES)[number] | null = null;
   lost = false;
-  storageOK = true;
   progress: Progress;
   private sound: (action: Action) => void;
+  private save: ReturnType<typeof checkpointWriter>;
+  private saveStatus: ReturnType<Game['save']> = 'saved';
 
-  constructor(progress: Progress, sound: (action: Action) => void) {
+  constructor(progress: Progress, sound: (action: Action) => void, save = checkpointWriter()) {
     this.progress = progress;
     this.sound = sound;
+    this.save = save;
     this.body.x = progress.x;
     this.camera = clamp(progress.x - W * .4, 0, LIMIT - W);
+    const garage = garageNear(progress.x);
+    if (garage) this.stageRide(garage.x);
     for (let i = 0; i < 35; i++) {
       const x = 265 + i * 328 + (i % 5) * 39;
       if (x >= 9160 && x <= 10470) continue;
@@ -85,6 +90,15 @@ export class Game {
   get index() { return this.progress.completed; }
   get current() { return JOBS[this.index]; }
   get remainingSentries() { return this.people.filter(p => p.hostile && p.hp > 0).length; }
+  get storageOK() { return this.saveStatus === 'saved'; }
+  get storageWarning() {
+    return this.saveStatus === 'changed' ? 'Browser checkpoint changed elsewhere. This checkpoint is kept in this tab only.'
+      : this.saveStatus === 'unavailable' ? 'Browser storage unavailable. Your checkpoint is kept in this tab only.' : '';
+  }
+  private get onExchangeRoof() {
+    return !this.car && this.x >= EXCHANGE_ROOF.x - 3 && this.x <= EXCHANGE_ROOF.x + EXCHANGE_ROOF.width + 3
+      && Math.abs(this.body.y - EXCHANGE_ROOF.y) <= 3;
+  }
   get nearestRefuge() {
     return HIDEOUTS.reduce((closest, p) => delta(p.x, this.x) < delta(closest.x, this.x) ? p : closest);
   }
@@ -99,12 +113,20 @@ export class Game {
       return { ...POINTS.delivery, text: this.job.drove ? 'Deliver the canister to Tidelane' : 'Drive the orange Kite to Tidelane',
         hint: this.car ? 'A / D to drive, W / S to change lanes, Space to brake.' : 'Follow the gold marker to Tidelane.' };
     }
-    if (!this.job) return { ...this.current.location, text: 'Meet ' + this.current.contact + ' · ' + this.current.location.name };
+    if (!this.job) return {
+      ...this.current.location, text: this.index === 3
+        ? 'Meet Roux · bring your Sidecar ride or take a loaner'
+        : 'Meet ' + this.current.contact + ' · ' + this.current.location.name,
+    };
     switch (this.index) {
       case 1: return { ...POINTS.refuge, text: this.heat ? 'Lose the tail · outrun it or hide at Bluehour' : 'Check in at Bluehour · E' };
       case 2: return this.job.beacon
-        ? { ...POINTS.refuge, text: this.heat ? 'Escape the search and return to Bluehour' : 'Return the cartridge to Bluehour · E' }
-        : { ...POINTS.exchange, text: 'Lift the cartridge at Signal Exchange · E' };
+        ? { ...POINTS.refuge, text: this.heat
+          ? this.onExchangeRoof
+            ? 'Stay on the roof to lose the search, or flee'
+            : 'Escape the search and return to Bluehour'
+          : 'Return the cartridge to Bluehour · E' }
+        : { ...POINTS.exchange, text: 'Climb the west roofs to reach the cartridge' };
       case 3: return { ...POINTS.finish, text: 'Beat Roux to the far toll · ' + Math.max(0, this.job.time).toFixed(1) + 's' };
       default: return this.job.beacon
         ? { ...POINTS.port, text: 'Return Beacon 06 to Inez · E' }
@@ -117,10 +139,14 @@ export class Game {
   say(title: string, detail: string, kind: Signal['kind'] = 'info') { this.notice = { title, detail, kind, age: 4.8 }; }
   checkpoint(x = this.x) {
     this.progress.x = Math.round(x);
-    this.storageOK = storeSave(this.progress);
+    this.saveStatus = this.save(this.progress);
   }
 
-  retry() { return new Game(this.progress, this.sound); }
+  retry() {
+    const game = new Game({ ...this.progress, owned: [...this.progress.owned] }, this.sound, this.save);
+    game.saveStatus = this.saveStatus;
+    return game;
+  }
 
   reportCrime(level: number) {
     const prior = this.heat;
@@ -145,11 +171,12 @@ export class Game {
     const level = this.heat;
     const police = TUNE.police;
     const range = police.range[level];
-    this.spotted = !this.hide && this.units.some(u => delta(u.x, this.x) < range);
+    const covered = this.hide || (this.index === 2 && this.job?.beacon && this.onExchangeRoof);
+    this.spotted = !covered && this.units.some(u => delta(u.x, this.x) < range);
     if (this.spotted) {
       this.lastSeen = this.x;
       this.search = 0;
-    } else if (this.hide || delta(this.x, this.lastSeen) > police.placeDistance ||
+    } else if (covered || delta(this.x, this.lastSeen) > police.placeDistance ||
       (this.body.y < ROAD - 35 && !this.car)) {
       this.search += dt;
     } else {
@@ -163,7 +190,7 @@ export class Game {
       this.sound('confirm');
       return;
     }
-    if (!this.hide && this.search === 0 && this.units.length < level && this.intake <= 0) {
+    if (!covered && this.search === 0 && this.units.length < level && this.intake <= 0) {
       const heading = this.car?.dir ?? this.body.dir;
       const side = level >= 3 && this.units.length % 2 ? heading : -heading;
       let spawn = this.x + side * (police.spawn + this.units.length * 88);
@@ -183,7 +210,7 @@ export class Game {
       u.dir = Math.abs(u.v) > 9 ? Math.sign(u.v) : dir;
       u.x = clamp(u.x + u.v * dt, 10, LIMIT - 10);
       const distance = delta(u.x, this.x);
-      const tracking = !this.hide && distance < range;
+      const tracking = !covered && distance < range;
       if (this.car && tracking && !u.ramAt) u.lane = toward(u.lane, this.car.yLane, dt * .8);
       if (u.ramAt && this.clock >= u.ramAt) {
         u.ramAt = 0;
@@ -201,7 +228,7 @@ export class Game {
   private hurt(amount: number, direction: number) {
     if (this.damage > 0 || this.hide) return;
     if (this.car) {
-      this.car.hp -= amount * (this.progress.armor && this.car.owned ? 1 - GARAGE_TUNE.damage : 1);
+      this.car.hp -= amount * (this.progress.armor && this.car.personal ? 1 - GARAGE_TUNE.damage : 1);
       this.car.v *= .69;
       if (this.car.hp <= 0) {
         this.leave();
@@ -222,10 +249,10 @@ export class Game {
   private drive(dt: number) {
     const c = this.car!;
     const kind = CARS[c.kind];
-    const tuned = c.owned && this.progress.engine;
+    const tuned = c.personal && this.progress.engine;
     const direction = Number(held('KeyD', 'ArrowRight')) - Number(held('KeyA', 'ArrowLeft'));
     const brake = held('Space');
-    const top = kind.speed * (tuned ? 1 + GARAGE_TUNE.speed : 1);
+    const top = this.topSpeed(c);
     const fromX = c.x, fromLane = c.yLane, wasMoving = Math.abs(c.v) > 25;
     const up = tap('KeyW', 'ArrowUp'), down = tap('KeyS', 'ArrowDown');
     if (up || down) c.lane = clamp(c.lane + Number(down) - Number(up), -1, 1);
@@ -381,8 +408,19 @@ export class Game {
     this.sound('door');
   }
 
+  private topSpeed(c: Vehicle) {
+    return CARS[c.kind].speed * (c.personal && this.progress.engine ? 1 + GARAGE_TUNE.speed : 1);
+  }
+
+  private missionRide() {
+    const car = this.car;
+    return car?.personal && (this.index !== 3 || this.topSpeed(car) > TUNE.raceRival.speed + TUNE.raceRival.swing)
+      ? car : null;
+  }
+
   private startJob() {
     if (!this.current) return;
+    this.checkpoint(this.current.location.x);
     if (this.index === 0 && this.starterKite.hp <= 0) {
       this.cars = this.cars.filter(c => c !== this.starterKite);
       this.starterKite = carAt(STARTER_KITE_X, 'compact');
@@ -392,13 +430,22 @@ export class Game {
     this.say(this.current.title, this.current.line);
     this.sound('confirm');
     if (this.index === 1 || this.index === 3) {
-      this.leave();
+      const start = this.current.location.x + 26;
+      const ride = this.missionRide();
       this.cars = this.cars.filter(c => c !== this.jobLoaner);
-      const x = this.loanerSpawn(this.current.location.x + 26);
-      const loan = carAt(x, 'coupe', true);
-      this.jobLoaner = loan;
-      this.cars.push(loan);
-      this.board(loan, false);
+      this.jobLoaner = null;
+      if (ride) {
+        ride.x = this.missionSpawn(start, ride.kind, ride);
+        ride.v = 0;
+        ride.dir = 1;
+        ride.lane = ride.yLane = 0;
+      } else {
+        this.leave();
+        const loan = carAt(this.missionSpawn(start, 'coupe'), 'coupe', true);
+        this.jobLoaner = loan;
+        this.cars.push(loan);
+        this.board(loan, false);
+      }
     }
     if (this.index === 1) {
       this.job.time = TUNE.getawayTime;
@@ -417,11 +464,11 @@ export class Game {
     }
   }
 
-  private loanerSpawn(x: number) {
+  private missionSpawn(x: number, kind: CarKind, ride?: Vehicle) {
     const blocked = [...this.cars, ...this.traffic]
-      .filter(c => c.lane === 0 || Math.abs(c.yLane) <= TRAFFIC_LANE_CLEARANCE)
+      .filter(c => c !== ride && (c.lane === 0 || Math.abs(c.yLane) <= TRAFFIC_LANE_CLEARANCE))
       .map(c => {
-        const clearance = (CARS[c.kind].width + CARS.coupe.width) / 2 + Math.abs(c.v) * .35 + 2;
+        const clearance = (CARS[c.kind].width + CARS[kind].width) / 2 + Math.abs(c.v) * .35 + 2;
         return [c.x - clearance, c.x + clearance] as const;
       })
       .sort(([leftA], [leftB]) => leftA - leftB);
@@ -439,7 +486,9 @@ export class Game {
     this.job = null;
     this.jobLoaner = null;
     this.checkpoint();
-    this.say(this.current ? 'Job cleared · ' + title : 'The coast is yours', '+$' + reward + ' · ' + (this.storageOK ? 'Checkpoint saved' : 'Browser storage unavailable'), 'good');
+    const garageHint = this.index === 2 ? ' · Sidecar Outpost is east of Bluehour' : '';
+    this.say(this.current ? 'Job cleared · ' + title : 'The coast is yours',
+      '+$' + reward + ' · ' + (this.storageOK ? 'Checkpoint saved' : 'Saved for this tab only') + garageHint, 'good');
     this.sound('reward');
   }
 
@@ -447,7 +496,7 @@ export class Game {
     if (!this.job) return;
     this.job = null;
     this.people = this.people.filter(n => !n.hostile);
-    this.say('Job failed · ' + reason, 'Return to the contact to retry. Your saved progress is intact.', 'bad');
+    this.say('Job failed · ' + reason, 'Return to the contact to retry, or continue from the checkpoint.', 'bad');
     this.sound('bad');
   }
 
@@ -461,7 +510,7 @@ export class Game {
     }
     if (this.index === 3) {
       this.job.time -= dt;
-      this.job.rival += (258 + Math.sin(this.clock * 1.6) * 16) * dt;
+      this.job.rival += (TUNE.raceRival.speed + Math.sin(this.clock * 1.6) * TUNE.raceRival.swing) * dt;
       if (this.car && this.x >= POINTS.finish.x && this.job.rival < POINTS.finish.x) this.finish();
       else if (this.job.time <= 0 || this.job.rival >= POINTS.finish.x) this.fail('Roux crossed first');
     }
@@ -483,12 +532,15 @@ export class Game {
       label: 'Hide at ' + hideout.name,
       run: () => { if (this.car) this.car.v = 0; this.hide = true; this.sound('door'); }
     };
-    if (!this.job && this.current && near(this.current.location.x) && !this.heat)
-      return { label: 'Talk to ' + this.current.contact, run: () => this.startJob() };
+    if (!this.job && this.current && near(this.current.location.x) && !this.heat) {
+      const ride = this.missionRide();
+      const via = this.index === 3 ? (ride ? ' · race your ' + CARS[ride.kind].label : ' · take the Sable loaner') : '';
+      return { label: 'Talk to ' + this.current.contact + via, run: () => this.startJob() };
+    }
     if (this.job) {
       if (this.index === 1 && !this.heat && near(POINTS.refuge.x))
         return { label: 'Check in with Mara', run: () => this.finish() };
-      if (this.index === 2 && !this.job.beacon && near(POINTS.exchange.x) && !this.car)
+      if (this.index === 2 && !this.job.beacon && near(POINTS.exchange.x, 46) && this.onExchangeRoof)
         return { label: 'Take the cartridge', run: () => { this.job!.beacon = true; this.reportCrime(TUNE.crime.exchange); } };
       if (this.index === 2 && this.job.beacon && !this.heat && near(POINTS.refuge.x))
         return { label: 'Hand off the cartridge', run: () => this.finish() };
@@ -501,7 +553,8 @@ export class Game {
     if (this.car) return Math.abs(this.car.v) > MAX_EXIT_SPEED
       ? { label: 'Brake to exit' }
       : { label: 'Exit ' + CARS[this.car.kind].label, run: () => this.leave() };
-    if (!this.heat && near(POINTS.garage.x, 67)) return { label: 'Open Sidecar Garage', run: () => { this.garage = true; this.sound('door'); } };
+    const garage = garageNear(this.x);
+    if (!this.heat && garage) return { label: 'Open ' + garage.name, run: () => { this.garage = garage; this.sound('door'); } };
     const c = this.nearestCar();
     if (c && this.body.y > ROAD - 31) return {
       label: (c.owned ? 'Enter ' : 'Borrow ') + CARS[c.kind].label, run: () => this.board(c, true)
@@ -515,6 +568,7 @@ export class Game {
   }
 
   purchase(key: Purchase) {
+    if (!this.garage) return;
     const p = this.progress;
     if (key === 'engine' || key === 'armor') {
       if (p[key] || p.cash < UPGRADES[key]) return;
@@ -527,21 +581,24 @@ export class Game {
         p.owned.push(key);
       }
       p.selected = key;
-      this.cars = this.cars.filter(c => !c.owned);
-      this.cars.push(carAt(POINTS.garage.x + 115, key, true));
     }
-    this.checkpoint();
+    this.stageRide(this.garage.x);
+    this.checkpoint(this.garage.x);
     this.sound('reward');
   }
 
+  private stageRide(x: number) {
+    this.cars = this.cars.filter(c => !c.personal);
+    this.cars.push({ ...carAt(x + 115, this.progress.selected, true), personal: true });
+  }
+
   service() {
-    const p = this.progress;
+    if (!this.garage) return;
     this.hp = TUNE.maxHealth;
     this.charge = 14;
-    this.cars = this.cars.filter(c => !c.owned);
-    this.cars.push(carAt(POINTS.garage.x + 115, p.selected, true));
-    this.checkpoint();
-    this.say('Ride staged', 'Find your tuned vehicle just east of Sidecar.', 'good');
+    this.stageRide(this.garage.x);
+    this.checkpoint(this.garage.x);
+    this.say('Ride staged', 'Find your ' + CARS[this.progress.selected].label + ' just east of the garage.', 'good');
     this.sound('confirm');
   }
 

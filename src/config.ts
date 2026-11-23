@@ -15,18 +15,21 @@ export const POINTS = {
   contact: { x: 650, name: 'Mara / Dispatch' },
   garage: { x: 920, name: 'Sidecar Garage' },
   delivery: { x: 2430, name: 'Tidelane' },
-  exchange: { x: 3290, name: 'Signal Exchange' },
+  exchange: { x: 3125, name: 'Signal Exchange roof' },
   refuge: { x: 4950, name: 'Bluehour Refuge' },
+  outpost: { x: 5250, name: 'Sidecar Outpost' },
   race: { x: 5640, name: 'Causeway Start' },
   finish: { x: 7440, name: 'Causeway Finish' },
   port: { x: 8140, name: 'Inez / Freight Office' },
   freight: { x: 10110, name: 'Beacon 06' },
 };
 export const HIDEOUTS = [POINTS.garage, POINTS.refuge];
+export const GARAGES = [POINTS.garage, POINTS.outpost];
+export const EXCHANGE_ROOF = { x: 3040, width: 134, y: ROAD - 108 };
 export const PLATFORMS = [
   { x: 2780, width: 102, y: ROAD - 42 },
   { x: 2880, width: 145, y: ROAD - 83 },
-  { x: 3040, width: 134, y: ROAD - 108 },
+  EXCHANGE_ROOF,
   { x: 9500, width: 95, y: ROAD - 38 },
   { x: 9630, width: 108, y: ROAD - 70 },
   { x: 9750, width: 138, y: ROAD - 105 },
@@ -50,7 +53,7 @@ export const TUNE = {
     spawn: 530, placeDistance: 460, hideDistance: 120, hideSpeed: 105,
     ramRange: 120, ramWindup: .45, ramRecovery: .95,
   },
-  laneOffset: 24, raceTime: 13, getawayTime: 58,
+  laneOffset: 24, raceTime: 13, raceRival: { speed: 258, swing: 16 }, getawayTime: 58,
 };
 export const TOOLS = [
   { name: 'Palm strike', range: 48, vertical: 27, damage: 30, cooldown: .35, color: '#ffdb9d' },
@@ -59,9 +62,9 @@ export const TOOLS = [
 ];
 export const JOBS = [
   { title: 'First Light', contact: 'Mara', location: POINTS.contact, reward: 300, line: 'Take this film canister to Tidelane. Borrow the marked Kite, but expect police attention.' },
-  { title: 'Tail Lights', contact: 'Mara', location: POINTS.delivery, reward: 420, line: 'They traced the reel. Take the tuned coupe east and lose the tail. Bluehour has a shutter.' },
-  { title: 'Dead Air', contact: 'Mara', location: POINTS.refuge, reward: 570, line: 'The Exchange has our recording. Lift the cartridge and get back to Bluehour clean.' },
-  { title: 'Cut Across', contact: 'Roux', location: POINTS.race, reward: 630, line: 'First to the far toll wins. Hold the throttle, move around traffic and stay off the wall.' },
+  { title: 'Tail Lights', contact: 'Mara', location: POINTS.delivery, reward: 420, line: 'They traced the reel. Drive east and lose the tail. Bluehour has a shutter.' },
+  { title: 'Dead Air', contact: 'Mara', location: POINTS.refuge, reward: 570, line: 'Climb the low roofs west of the Exchange. Lift the cartridge and bring it back clean.' },
+  { title: 'Cut Across', contact: 'Roux', location: POINTS.race, reward: 630, line: 'First to the far toll wins. Keep your speed up, move around traffic and stay off the wall.' },
   { title: 'Last Transmission', contact: 'Inez', location: POINTS.port, reward: 850, line: 'Climb the freight stacks. Shut down the sentries, grab Beacon 06, then get back here.' },
 ];
 export const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));

@@ -387,7 +387,7 @@ export function render(c: Ctx, now: number, game: Game | null, reduced: boolean)
     }
     c.globalAlpha = 1;
     const g = game.goal();
-    if (game.current) marker(c, g.x - cam, g.x === POINTS.freight.x ? 324 : 316, clock, g.name, '#ffd6a6');
+    if (game.current) marker(c, g.x - cam, g.x === POINTS.exchange.x ? 268 : g.x === POINTS.freight.x ? 324 : 316, clock, g.name, '#ffd6a6');
     if (game.heat) {
       for (const key of [POINTS.garage, POINTS.refuge]) if (key.x !== g.x)
         marker(c, key.x - cam, 330, clock, 'REFUGE', '#98e5d2');

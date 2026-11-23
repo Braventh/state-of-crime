@@ -42,6 +42,7 @@ const dock = app.querySelector<HTMLElement>('.hud-dock')!;
 const settings = loadSettings();
 const audio = new AudioBed(settings);
 let game: Game | null = null;
+let sessionCheckpoint: Game | null = null;
 let scene: 'title' | 'play' | 'pause' | 'settings' | 'garage' | 'over' = 'title';
 let settingsFrom: 'title' | 'pause' = 'title';
 let needsRender = true;
@@ -58,9 +59,13 @@ const carKeys = Object.keys(CARS) as CarKind[];
 const percent = (ratio: number) => Math.round(ratio * 100) + '%';
 const garageItem = (title: string, detail: string, badge: string) =>
   '<span>' + title + '<small>' + detail + '</small></span><span>' + badge + '</span>';
-function start(progress: Progress, shouldSave = false) {
-  game = new Game(progress, name => audio.cue(name));
-  if (shouldSave) game.checkpoint();
+const newGame = (progress: Progress) => new Game(progress, name => audio.cue(name));
+function start(next: Game, continueFromCheckpoint = false) {
+  game = next;
+  if (continueFromCheckpoint) {
+    game.say('Checkpoint restored', game.current ? 'Next job: ' + game.current.title + ' · Speak to ' + game.current.contact
+      : 'All five jobs cleared.', 'good');
+  } else game.checkpoint();
   goto('play');
 }
 function goto(s: typeof scene) {
@@ -73,24 +78,30 @@ function goto(s: typeof scene) {
   overlay.className = 'overlay ' + scene;
   if (s === 'play') { (document.activeElement as HTMLElement | null)?.blur(); return; }
   if (s === 'title') {
+    const saved = sessionCheckpoint?.progress ?? loadSave();
+    const next = saved && JOBS[saved.completed];
     overlay.innerHTML = `
       <div class="cover">
         <div class="eyebrow"><i></i> SOUTHLINE ARCADE PRESENTS <span>001</span></div>
         <h1><small>STATE OF</small><em>CRIME<span>.</span></em></h1>
         <div class="tagline">Five jobs. One crooked coast.</div>
         <p>Start in Crownwater. Look for Mara under the gold marker to pick up your first job.</p>
-        <div class="buttons">${btn('new', 'New game <span>↗</span>', true)}${btn('continue', 'Continue', false, !loadSave())}${btn('settings', 'Settings')}</div>
+        <div class="buttons">${btn('new', 'New game <span>↗</span>', true)}${btn('continue', 'Continue from checkpoint', false, !saved)}${btn('settings', 'Settings')}</div>
+        ${saved ? '<p class="checkpoint-summary">' + saved.completed + '/5 cleared · $' + saved.cash.toLocaleString('en-US') + ' saved'
+          + (next ? ' · Next: ' + next.title + '<br>Active jobs restart. Pursuits reset.' : '')
+          + (sessionCheckpoint ? '<br>' + sessionCheckpoint.storageWarning : '') + '</p>' : ''}
       </div>
       <div class="stamp"><div>24° N &nbsp; / &nbsp; 81° W</div><strong>THE<br>PALMETTO<br>TAPES</strong><span>EPISODE 01 — OPEN ROAD</span></div>
       <div class="title-controls"><b>GET STARTED</b> ${directionKeys} Move · ${interactKey} Interact · ${pauseKey} Pause / all controls</div>`;
   }
-  if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', 'The coast can wait.',
+  if (s === 'pause') overlay.innerHTML = panel('INTERMISSION', 'Paused.', game?.storageWarning
+    || 'Continue from your last checkpoint if you leave. Active jobs restart and pursuits reset.',
     btn('resume', 'Resume ↗', true) + btn('settings', 'Settings') + btn('title', 'Main menu'), controls);
   if (s === 'settings') overlay.innerHTML = panel('OPTIONS / AUDIO & DISPLAY', 'Settings.', 'Settings are saved on this browser.', btn('back', 'Back ↗', true),
     `<label>Master volume <span id="volume-label">${Math.round(settings.volume * 100)}%</span><input id="volume" type="range" min="0" max="100" value="${Math.round(settings.volume * 100)}"></label>
     <label class="toggle">Mute <input id="mute" type="checkbox" ${settings.mute ? 'checked' : ''}></label>
     <label class="toggle">Reduced motion <input id="reduced" type="checkbox" ${settings.reduced ? 'checked' : ''}></label>`);
-  if (s === 'garage' && game) {
+  if (s === 'garage' && game?.garage) {
     const p = game.progress;
     const upgrades = [
       ['engine', 'Engine tune', '+' + percent(GARAGE_TUNE.speed) + ' top speed · +' + percent(GARAGE_TUNE.accel) + ' acceleration'],
@@ -104,10 +115,12 @@ function goto(s: typeof scene) {
       return btn(key, garageItem(CARS[key].label, CARS[key].handling, selected ? 'SELECTED' : owned ? 'STAGE' : '$' + price),
         false, selected || (!owned && p.cash < price));
     });
-    overlay.innerHTML = panel('GARAGE / CROWNWATER', 'Sidecar.', '$' + p.cash.toLocaleString('en-US') + ' cash · Upgrades apply to owned rides.',
+    overlay.innerHTML = panel('GARAGE / ' + regionAt(game.garage.x).name.toUpperCase(), game.garage.name + '.',
+      '$' + p.cash.toLocaleString('en-US') + ' cash · Upgrades apply to Sidecar rides.' + (game.storageOK ? '' : '<br>Checkpoint kept in this tab only.'),
       btn('service', 'Restock & stage ' + CARS[p.selected].label, true) + btn('close', 'Back to street'), '<div class="garage-list">' + [...products, ...fleet].join('') + '</div>');
   }
-  if (s === 'over') overlay.innerHTML = panel('TRANSMISSION LOST', 'Busted.', 'The last safe checkpoint is still on tape.',
+  if (s === 'over') overlay.innerHTML = panel('TRANSMISSION LOST', 'Busted.', game && !game.storageOK
+    ? 'Your checkpoint is kept in this tab only.' : 'The last safe checkpoint is still on tape.',
     btn('retry', 'Reload checkpoint ↗', true) + btn('title', 'Main menu'));
 }
 function panel(kicker: string, title: string, caption: string, buttons: string, inner = '') {
@@ -135,18 +148,24 @@ overlay.addEventListener('click', e => {
   audio.wake();
   const action = button.dataset.action;
   if (action === 'new') {
-    if (loadSave() && !window.confirm('Replace the current checkpoint with a new game?')) return;
-    start(fresh(), true);
-  } else if (action === 'continue') start(loadSave() ?? fresh());
-  else if (action === 'retry' && game) { game = game.retry(); goto('play'); }
+    if ((sessionCheckpoint || loadSave()) && !window.confirm('Replace the current checkpoint with a new game?')) return;
+    sessionCheckpoint = null;
+    start(newGame(fresh()));
+  } else if (action === 'continue') {
+    const saved = loadSave();
+    const next = sessionCheckpoint?.retry() ?? (saved ? newGame(saved) : null);
+    sessionCheckpoint = null;
+    if (next) start(next, true);
+    else goto('title');
+  } else if (action === 'retry' && game) start(game.retry(), true);
   else if (action === 'settings') {
     settingsFrom = scene === 'pause' ? 'pause' : 'title';
     goto('settings');
   } else if (action === 'back') goto(settingsFrom);
-  else if (action === 'title') { game = null; goto('title'); }
+  else if (action === 'title') { sessionCheckpoint = game && !game.storageOK ? game : null; game = null; goto('title'); }
   else if (action === 'resume') goto('play');
-  else if (action === 'close' && game) { game.garage = false; goto('play'); }
-  else if (action === 'service' && game) { game.service(); game.garage = false; goto('play'); }
+  else if (action === 'close' && game) { game.garage = null; goto('play'); }
+  else if (action === 'service' && game) { game.service(); game.garage = null; goto('play'); }
   else if (scene === 'garage' && game) { game.purchase(action as Purchase); goto('garage'); }
 });
 $('pause').addEventListener('click', () => goto('pause'));
@@ -207,7 +226,7 @@ function loop(now: number) {
     if (scene === 'play') goto('pause');
     else if (scene === 'pause') goto('play');
     else if (scene === 'settings') goto(settingsFrom);
-    else if (scene === 'garage' && game) { game.garage = false; goto('play'); }
+    else if (scene === 'garage' && game) { game.garage = null; goto('play'); }
   }
   if (scene === 'play' && game) {
     if (dt > 0) game.step(dt);

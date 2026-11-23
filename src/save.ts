@@ -44,5 +44,17 @@ function write(key: string, value: unknown) {
 }
 export const loadSave = () => decodeSave(read(SAVE_KEY));
 export const loadSettings = () => decodeSettings(read(SETTINGS_KEY));
-export const storeSave = (p: Progress) => write(SAVE_KEY, p);
+type CheckpointStatus = 'saved' | 'unavailable' | 'changed';
+export function checkpointWriter() {
+  let expected = read(SAVE_KEY);
+  return (p: Progress): CheckpointStatus => {
+    try {
+      if (localStorage.getItem(SAVE_KEY) !== expected) return 'changed';
+      const next = JSON.stringify(p);
+      localStorage.setItem(SAVE_KEY, next);
+      expected = next;
+      return 'saved';
+    } catch { return 'unavailable'; }
+  };
+}
 export const storeSettings = (s: Settings) => write(SETTINGS_KEY, s);

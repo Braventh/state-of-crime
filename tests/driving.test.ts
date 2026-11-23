@@ -170,19 +170,25 @@ test('E does not cancel driving momentum but exits and re-enters after braking',
   assert.equal(game.heat, 0);
 });
 
-test('garage upgrades increase owned speed and reduce impact damage without tuning street cars', () => {
-  for (const owned of [true, false]) {
-    const { game, car } = setup('compact', owned);
+test('garage upgrades increase Sidecar ride speed and reduce impact damage without tuning street cars or loaners', () => {
+  for (const kind of ['personal', 'street', 'loaner']) {
+    const { game, car: nonPersonal } = setup('compact', kind === 'loaner');
     game.progress.cash = 840;
+    game.garage = POINTS.garage;
     game.purchase('engine');
     game.purchase('armor');
     assert.equal(game.progress.cash, 80);
+    const car = kind === 'personal' ? game.cars.find(ride => ride.personal)! : nonPersonal;
+    car.x = 1800;
+    game.car = car;
+    game.cars = [car];
+    game.garage = null;
     key('KeyD');
     ticks(game, 65);
-    assert.equal(car.v, CARS.compact.speed * (owned ? 1 + GARAGE_TUNE.speed : 1));
+    assert.equal(car.v, CARS.compact.speed * (car.personal ? 1 + GARAGE_TUNE.speed : 1));
     car.x = LIMIT - Math.ceil(CARS.compact.width / 2) - 5;
     ticks(game);
-    assert.equal(car.hp, CARS.compact.health - 13 * (owned ? 1 - GARAGE_TUNE.damage : 1));
+    assert.equal(car.hp, CARS.compact.health - 13 * (car.personal ? 1 - GARAGE_TUNE.damage : 1));
     resetInput();
   }
 });

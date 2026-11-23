@@ -125,7 +125,14 @@ play.onclick = () => {
 newGame.onclick = () => {
   if (window.confirm('Start a new game and replace this Crownwater checkpoint?')) begin(null, true);
 };
-pause.onclick = () => { if (running && !game.shop) { save(); setRunning(false); } };
+function pausePlay() {
+  if (!running || game.shop) return;
+  save();
+  setRunning(false);
+}
+pause.onclick = pausePlay;
+window.addEventListener('blur', pausePlay);
+document.addEventListener('visibilitychange', () => { if (document.hidden) pausePlay(); });
 window.addEventListener('pagehide', () => save());
 menuLabels();
 function closeShop() {
@@ -171,7 +178,8 @@ function frame(now: number) {
   previous = now;
   if (started && tap('Escape')) {
     if (game.shop) closeShop();
-    else { if (running) save(); setRunning(!running); }
+    else if (running) pausePlay();
+    else setRunning(true);
   }
   if (running && !game.shop) {
     const vertical = Number(held('KeyS', 'ArrowDown')) - Number(held('KeyW', 'ArrowUp'));

@@ -3,9 +3,10 @@ import { test } from 'node:test';
 import { businesses } from '../src/crime.ts';
 import { DISTRICT_WIDTH } from '../src/district.ts';
 import { Sandbox } from '../src/sandbox.ts';
-import { decodeSandbox, SANDBOX_KEY, sandboxStorage } from '../src/sandbox-save.ts';
+import { decodeSandbox, recoverCheckpoint, SANDBOX_KEY, sandboxStorage } from '../src/sandbox-save.ts';
+import { inside } from '../src/district.ts';
 import { fresh, SAVE_KEY } from '../src/save.ts';
-import { shopStock } from '../src/shops.ts';
+import { paints, shopStock } from '../src/shops.ts';
 import { bodyAt } from '../src/traversal.ts';
 
 const neutral = { side: 0, vertical: 0 };
@@ -138,6 +139,38 @@ test('Shop availability and ammo details update when a weapon is purchased and r
   assert.equal(game.purchaseIssue(ammo), 'Ammunition reserve full');
   assert.equal(game.buy(ammo), 'Ammunition reserve full');
   assert.equal(game.cash, 140 - pistol.price - ammo.price);
+});
+
+test('A wanted knockout retries from the nearest cover without losing progress or clearing heat', () => {
+  const game = new Sandbox();
+  game.body = bodyAt(1165);
+  game.ride = game.rides[0];
+  game.ride.x = game.body.x;
+  game.ride.taken = true;
+  game.ride.color = paints[0];
+  game.outfit = 2;
+  game.hp = 12;
+  game.cash = 216;
+  game.police.points = 87;
+  game.police.evidence = game.suspect.identity;
+  game.police.last = { x: game.body.x, y: game.body.y, age: 0, identity: game.suspect.identity };
+  const original = game.snapshot();
+  const retry = recoverCheckpoint(original, true);
+  assert.equal(inside(retry.x)?.name, 'Bluehour Arcade');
+  assert.deepEqual(retry, { ...original, x: 705, hp: 70, covered: true, driving: null });
+  assert.deepEqual(recoverCheckpoint(retry, true), retry);
+  assert.deepEqual(recoverCheckpoint(original, false), { ...original, hp: 70 });
+  const saved = decodeSandbox(JSON.stringify(retry));
+  assert.ok(saved);
+  const restored = new Sandbox();
+  restored.restore(saved);
+  restored.step(1 / 60, neutral);
+  assert.equal(restored.hp, 70);
+  assert.equal(restored.police.level, 3);
+  assert.equal(restored.police.spotted, false);
+  assert.equal(restored.ride, null);
+  assert.equal(restored.rides[0].x, original.x);
+  assert.equal(restored.rides[0].color, game.ride.color);
 });
 
 test('Storage migrates only compatible V1 data, rejects bad V2 data and protects a newer tab', () => {

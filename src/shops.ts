@@ -10,6 +10,7 @@ export type Stock = {
   { kind: 'med' | 'ammo' | 'engine' | 'armor' }
 );
 export const paints = ['#64c8b8', '#e7ba6d', '#ba88c9'];
+export const isCosmetic = (item: Stock) => item.kind === 'paint' || item.kind === 'hair' || item.kind === 'outfit';
 export const shopStock: Record<Business['id'], Stock[]> = {
   threads: [
     { kind: 'outfit', value: 0, name: 'Rust Runner', price: 30, info: 'Cropped rust jacket' },

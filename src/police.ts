@@ -13,6 +13,8 @@ export const responses = [
   { name: 'Maximum response', feet: 5, wheels: 3, range: 289, search: 15, speed: 265 },
 ];
 const thresholds = [10, 34, 65, 108, 153];
+const searchRadius = 150;
+const searchRate = (s: Suspect) => s.covered ? 1.32 : 1;
 export interface Identity { outfit: number; hair: number; ride: string; paint: string }
 export interface Suspect {
   x: number; y: number; covered: boolean; camera: number; ride: Ride | null; identity: Identity;
@@ -52,6 +54,18 @@ export class Police {
   get response() { return responses[this.level]; }
   get mode() { return !this.level ? 'Clear' : this.spotted ? 'In sight' : this.sinceSeen < .6 ? 'Responding' : 'Searching'; }
 
+  private outsideSearch(s: Suspect) {
+    return s.covered || !this.last || Math.hypot(s.x - this.last.x, (s.y - this.last.y) * 1.25) >= searchRadius;
+  }
+  readout(s: Suspect) {
+    if (!this.level) return 'Crownwater / Free roam';
+    if (this.spotted || (this.mode === 'Responding' && !s.covered)) return this.mode + ' · ' + this.response.name;
+    if (!this.outsideSearch(s)) return 'Searching · Move away or hide';
+    const state = s.covered ? 'Hidden' : 'Out of sight';
+    const seconds = Math.ceil((this.response.search - this.sinceSeen) / searchRate(s));
+    return seconds > 0 ? `${state} · Cooling in ${seconds}s` : `${state} · Losing heat`;
+  }
+
   private lines() {
     return [
       ...this.officers.filter(a => a.hp > 0),
@@ -65,8 +79,8 @@ export class Police {
     return !s.covered && Math.hypot(a.x - s.x, (a.y - s.y) * 1.25) <= range
       && clearShot(a.x, a.y - 33, s.x, s.y - 31);
   }
-  private known(s: Suspect) {
-    const signature = this.evidence ? recognition(this.evidence, s.identity) : 1;
+  private known(s: Suspect, continuousContact: boolean) {
+    const signature = !continuousContact && this.evidence ? recognition(this.evidence, s.identity) : 1;
     return this.lines().some(a => {
       const range = this.response.range * signature;
       return this.line(a, s, Math.max(this.level >= 4 ? 65 : 33, range));
@@ -132,13 +146,15 @@ export class Police {
       if (!this.evidence) this.evidence = { ...r.identity };
     }
     this.reports = this.reports.filter(r => r.delay > 0);
+    const continuousContact = this.spotted;
     this.spotted = false;
     const level = this.level;
-    if (level && this.known(s)) this.remember(s);
+    if (level && this.known(s, continuousContact)) this.remember(s);
     else if (level) {
-      this.sinceSeen += dt * (s.covered ? 1.32 : 1);
+      this.sinceSeen += dt * searchRate(s);
       if (this.last) this.last.age += dt;
-      if (this.sinceSeen > this.response.search) this.points = Math.max(0, this.points - dt * (s.covered ? 17 : 12));
+      if (this.sinceSeen > this.response.search && this.outsideSearch(s))
+        this.points = Math.max(0, this.points - dt * (s.covered ? 17 : 12));
     } else this.points = Math.max(0, this.points - dt * .35);
     if (!this.level) {
       this.evidence = this.last = null;

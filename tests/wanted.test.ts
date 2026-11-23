@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { W } from '../src/config.ts';
 import { STREET } from '../src/district.ts';
 import { Police, recognition, type Suspect } from '../src/police.ts';
+import { makeRide } from '../src/vehicles.ts';
 
 const defaultLook = { outfit: 0, hair: 0, ride: '', paint: '' };
 const suspect = (x: number, extra: Partial<Suspect> = {}): Suspect =>
@@ -59,4 +60,50 @@ test('Clothing and hairstyle stack; a new paint color lowers but does not elimin
   const car = { ...defaultLook, ride: 'kite', paint: '#fff' };
   assert.ok(recognition(car, { ...car, paint: '#000' }) < 1);
   assert.ok(recognition(car, { ...car, paint: '#000' }) > recognition(car, { ...car, ride: 'van' }));
+});
+
+test('Cooling starts only outside the last known area or in cover, with matching HUD feedback', () => {
+  const police = new Police();
+  const player = suspect(1200);
+  police.officers = [];
+  police.points = 55;
+  police.last = { x: 1200, y: STREET, identity: player.identity, age: 8 };
+  police.sinceSeen = 8;
+  police.step(.1, player, noOp, noOp);
+  assert.equal(police.points, 55);
+  assert.match(police.readout(player), /Searching · Move away or hide/);
+  const clearOfLead = suspect(1420);
+  police.step(.1, clearOfLead, noOp, noOp);
+  assert.ok(police.points < 55);
+  assert.equal(police.readout(clearOfLead), 'Out of sight · Losing heat');
+
+  const hidden = suspect(1200, { covered: true });
+  police.sinceSeen = 4;
+  assert.match(police.readout(hidden), /^Hidden · Cooling in \d+s$/);
+  for (let i = 0; i < 150; i++) police.step(.1, hidden, noOp, noOp);
+  assert.equal(police.level, 0);
+});
+
+test('Switching vehicles cannot break continuous contact; repaint helps after losing sight', () => {
+  const police = new Police();
+  police.points = 90;
+  const person = suspect(820);
+  police.step(.016, person, noOp, noOp);
+  assert.equal(police.spotted, true);
+  const ride = makeRide('getaway', person.x, 'compact', 0, 1);
+  const driver = suspect(person.x, { ride, identity: { ...defaultLook, ride: ride.id, paint: ride.color } });
+  police.step(.016, driver, noOp, noOp);
+  assert.equal(police.spotted, true);
+  assert.deepEqual(police.evidence, driver.identity);
+  police.step(.016, suspect(driver.x, { covered: true }), noOp, noOp);
+  assert.equal(police.spotted, false);
+
+  ride.color = '#64c8b8';
+  const repainted = { ...driver, identity: { ...driver.identity, paint: ride.color } };
+  police.step(.016, repainted, noOp, noOp);
+  assert.equal(police.spotted, false);
+  assert.ok(police.watched(repainted));
+  police.step(.016, { ...repainted, x: 943 }, noOp, noOp);
+  assert.equal(police.spotted, true);
+  assert.deepEqual(police.evidence, repainted.identity);
 });

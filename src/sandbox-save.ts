@@ -1,6 +1,6 @@
 import { weapons, type Drop, type Magazine, type WeaponId } from './combat.ts';
 import { CARS } from './config.ts';
-import { CELLAR, DISTRICT_WIDTH, inside, SPAWN, STREET } from './district.ts';
+import { CELLAR, DISTRICT_WIDTH, inside, passages, SPAWN, STREET } from './district.ts';
 import { type Identity } from './police.ts';
 import { paints } from './shops.ts';
 import { decodeSave, SAVE_KEY } from './save.ts';
@@ -96,3 +96,11 @@ export function sandboxStorage(initial: SandboxSave, storage: Pick<Storage, 'get
   };
 }
 export const savedHeight = (save: SandboxSave) => save.covered ? CELLAR : STREET;
+
+export function recoverCheckpoint(save: SandboxSave, wanted: boolean): SandboxSave {
+  const recovered = { ...save, hp: 70 };
+  if (!wanted || save.covered) return recovered;
+  const distance = (p: (typeof passages)[number]) => Math.min(...p.doors.map(x => Math.abs(x - save.x)));
+  const shelter = passages.reduce((nearest, p) => distance(p) < distance(nearest) ? p : nearest);
+  return { ...recovered, x: Math.round((shelter.left + shelter.right) / 2), covered: true, driving: null };
+}

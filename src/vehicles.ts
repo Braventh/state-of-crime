@@ -55,9 +55,12 @@ export function steer(ride: Ride, road: Ride[], input: DriveInput, dt: number, e
     }
   }
   if (ride.x < 37 || ride.x > DISTRICT_WIDTH - 37) {
+    const outward = ride.x < 37 ? ride.v < 0 : ride.v > 0;
     ride.x = clamp(ride.x, 37, DISTRICT_WIDTH - 37);
-    if (Math.abs(ride.v) > 105) impact = Math.max(impact, Math.abs(ride.v));
-    ride.v = 0;
+    if (outward) {
+      if (Math.abs(ride.v) > 105) impact = Math.max(impact, Math.abs(ride.v));
+      ride.v = 0;
+    }
   }
   if (impact) ride.hp = Math.max(0, ride.hp - impact * .085 * (armor ? 1 - GARAGE_TUNE.damage : 1));
   return impact;

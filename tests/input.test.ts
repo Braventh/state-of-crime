@@ -17,9 +17,16 @@ test('Space is captured in gameplay but left to native controls and menus', () =
   }
   assert.equal(press('Space').defaultPrevented, true);
   assert.equal(held('Space'), true);
+  const pause = new Control();
+  for (const code of ['KeyD', 'KeyF', 'Space']) {
+    const event = press(code, pause);
+    assert.equal(held(code), true, code);
+    assert.equal(tap(code), true, code);
+    assert.equal(event.defaultPrevented, true, code);
+  }
+  engaged = false;
   assert.equal(press('Space', new Control()).defaultPrevented, false);
   assert.equal(held('Space'), false);
-  engaged = false;
   assert.equal(press('Space').defaultPrevented, false);
   assert.equal(press('Escape', new Control()).defaultPrevented, false);
   assert.equal(tap('Escape'), true);

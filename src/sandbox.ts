@@ -271,6 +271,7 @@ export class Sandbox {
       this.sound('step');
     }
     const attack = this.armory.step(dt, input, this.body, [...this.actors, ...this.police.officers], this.sound);
+    if (attack?.loud) this.offend('gunfire');
     const enemy = attack?.target;
     if (enemy) {
       enemy.dir = this.body.dir;
@@ -280,8 +281,6 @@ export class Sandbox {
       }
       this.offend(enemy.role === 'officer' ? attack.killed ? 'officerDown' : 'officerAttacked'
         : enemy.role === 'gang' ? 'gangFight' : attack.killed ? 'civilianDown' : 'assault');
-    } else if (attack?.loud) {
-      this.offend('gunfire');
     }
   }
 

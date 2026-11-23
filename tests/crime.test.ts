@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
+import { actorAt } from '../src/combat.ts';
 import { businesses } from '../src/crime.ts';
 import { DISTRICT_WIDTH } from '../src/district.ts';
 import { Sandbox } from '../src/sandbox.ts';
@@ -84,4 +85,24 @@ test('Stealing an inbound commuter does not crash it at either driving boundary'
     assert.equal(commuter.v, 0);
     assert.equal(game.crime?.kind, 'damage');
   }
+});
+
+test('A bullet reports gunfire even when it hits a pedestrian outside witness range', () => {
+  const hit = new Sandbox();
+  const missed = new Sandbox();
+  const victim = actorAt('distant-pedestrian', 642, 2);
+  hit.actors = [victim];
+  missed.actors = [];
+  for (const game of [hit, missed]) {
+    game.body = bodyAt(400);
+    game.police.officers = [];
+    game.armory.supply(2);
+    game.step(1 / 60, { ...neutral, fire: true });
+  }
+  assert.ok(victim.hp < 100);
+  assert.equal(hit.crime?.kind, 'assault');
+  assert.equal(hit.crime?.witnesses, 0);
+  assert.equal(missed.crime?.kind, 'gunfire');
+  assert.ok(missed.police.level > 0);
+  assert.ok(hit.police.points > missed.police.points);
 });

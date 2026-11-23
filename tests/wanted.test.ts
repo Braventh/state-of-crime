@@ -15,15 +15,43 @@ test('Severity and observation both change the amount of heat; response escalate
   const person = suspect(1300);
   police.report({ kind: 'assault', x: person.x, y: STREET, covered: false, witnesses: 0 }, person);
   assert.equal(police.level, 0);
+  const observed = suspect(980);
+  const gunfire = { kind: 'gunfire', x: observed.x, y: STREET, covered: false, witnesses: 1 } as const;
   const checkpoints = [];
-  for (let i = 0; i < 11; i++) {
-    police.report({ kind: 'assault', x: person.x, y: STREET, covered: false, witnesses: 1 }, person);
+  for (let i = 0; i < 20; i++) {
+    police.report(gunfire, observed);
     checkpoints.push(police.level);
+    police.step(.34, observed, noOp, noOp);
   }
   assert.deepEqual([...new Set(checkpoints)], [1, 2, 3, 4, 5]);
   const severe = new Police();
   severe.report({ kind: 'officerDown', x: 980, y: STREET, covered: false, witnesses: 0 }, suspect(980));
   assert.ok(severe.level >= 3);
+});
+
+test('Maximum response needs sustained, police-observed serious crime', () => {
+  const player = suspect(980);
+  const crime = { x: player.x, y: STREET, covered: false, witnesses: 1 };
+  const observed = new Police();
+  observed.report({ ...crime, kind: 'shopRobbery' }, player);
+  assert.equal(observed.level, 2);
+  for (let i = 0; i < 5; i++) {
+    observed.report({ ...crime, kind: 'gunfire' }, player);
+    observed.step(.34, player, noOp, noOp);
+  }
+  assert.ok(observed.level < 5);
+
+  const witnessOnly = new Police();
+  witnessOnly.report({ ...crime, kind: 'shopRobbery' }, suspect(1400));
+  for (let i = 0; i < 30; i++) {
+    witnessOnly.officers = [];
+    witnessOnly.cruisers = [];
+    assert.equal(witnessOnly.report({ ...crime, kind: 'gunfire' }, player), false);
+    witnessOnly.step(.34, player, noOp, noOp);
+  }
+  assert.equal(witnessOnly.level, 4);
+  assert.equal(witnessOnly.report({ ...crime, kind: 'officerAttacked' }, player), false);
+  assert.equal(witnessOnly.level, 4);
 });
 
 test('Police do not cool off in sight, do not track movement in cover, and can lose a five-star target', () => {

@@ -149,7 +149,15 @@ export class Police {
       a.pose = Math.max(0, a.pose - dt);
       a.ready = Math.max(0, a.ready - dt);
       if (!a.hp) { a.down += dt; continue; }
-      if (!this.last || !this.level) continue;
+      if (!this.last || !this.level) {
+        const home = a.id === 'beat-west' ? 985 : a.id === 'beat-east' ? 2593
+          : a.x < DISTRICT_WIDTH / 2 ? -62 : DISTRICT_WIDTH + 62;
+        const next = toward(a.x, home, dt * 104);
+        a.dir = Math.sign(next - a.x) || a.dir;
+        a.stride += Math.abs(next - a.x) / 13;
+        a.x = next;
+        continue;
+      }
       const gap = Math.abs(s.x - a.x);
       const signature = this.evidence ? recognition(this.evidence, s.identity) : 1;
       const seen = this.spotted && this.line(a, s, Math.max(this.level >= 4 ? 65 : 33, this.response.range * signature));
@@ -197,9 +205,9 @@ export class Police {
       }
       ride.x += ride.v * dt;
     }
-    this.officers = this.officers.filter(a => a.down < 8 && (this.level || a.id.startsWith('beat-') || Math.abs(a.x - s.x) < W * .8));
+    this.officers = this.officers.filter(a => a.down < 8 && (this.level || a.id.startsWith('beat-') || a.x > -62 && a.x < DISTRICT_WIDTH + 62));
   }
 
   get road() { return this.cruisers.map(unit => unit.ride); }
-  get tells() { return this.cruisers.filter(unit => unit.windup > 0 || unit.block); }
+  get tells() { return this.level ? this.cruisers.filter(unit => unit.windup > 0 || unit.block) : []; }
 }

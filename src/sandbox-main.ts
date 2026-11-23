@@ -2,6 +2,7 @@ import './sandbox.css';
 import { AudioBed } from './audio.ts';
 import type { WeaponId } from './combat.ts';
 import { H, W } from './config.ts';
+import { DISTRICT_WIDTH } from './district.ts';
 import { clearEdges, held, resetInput, startInput, tap } from './input.ts';
 import { Sandbox } from './sandbox.ts';
 import { renderSandbox } from './sandbox-art.ts';
@@ -46,7 +47,9 @@ app.innerHTML = `
       </section>
     </div>
   </section>
-  <footer class="dock"><strong id="block">Lantern Row</strong><span id="prompt"></span><span id="equipment"></span><span id="status"></span></footer>`;
+  <footer class="dock"><div class="district-readout"><strong id="block">Lantern Row</strong>
+    <div class="strip-map" aria-hidden="true"><span id="location"></span></div></div>
+    <span id="prompt"></span><span id="equipment"></span><span id="status"></span></footer>`;
 const get = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = app.querySelector('canvas')!;
 const context = canvas.getContext('2d', { alpha: false })!;
@@ -198,6 +201,7 @@ function frame(now: number) {
   audio.step(Math.abs(game.ride?.v ?? 0), police.spotted ? police.level : Math.max(0, police.level - 1), Boolean(game.ride), running && !game.shop);
   renderSandbox(context, game, started ? game.time : now / 1000, settings.reduced);
   label('block', game.block.name);
+  get('location').style.left = `${(100 * game.body.x / DISTRICT_WIDTH).toFixed(2)}%`;
   label('prompt', started ? game.noticeTime && game.notice ? game.notice : game.prompt : 'No jobs. No fixed route.');
   const { gun, ammo, loading } = game.armory;
   label('equipment', game.ride ? `${Math.round(Math.abs(game.ride.v) / 3.9)} mph · ${Math.ceil(game.ride.hp)} integrity`

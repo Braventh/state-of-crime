@@ -1,6 +1,6 @@
 import { sky, horizon, ground } from './art.ts';
 import { W } from './config.ts';
-import { blocks, ladders, passages, roofs, STREET, CELLAR, type Surface } from './district.ts';
+import { blocks, DISTRICT_WIDTH, ladders, passages, roofs, STREET, CELLAR, type Surface } from './district.ts';
 import type { Motion } from './traversal.ts';
 
 type Ctx = CanvasRenderingContext2D;
@@ -83,15 +83,35 @@ function passageArt(c: Ctx, passage: (typeof passages)[number], active: boolean)
   }
   lettering(c, name.toUpperCase(), (left + right) / 2, y - 36, '#b7d5cd', 10);
 }
+let backlot: HTMLCanvasElement | undefined;
+function buildings(c: Ctx, camera: number) {
+  if (!backlot) {
+    const surface = document.createElement('canvas');
+    surface.width = DISTRICT_WIDTH;
+    surface.height = STREET;
+    const paint = surface.getContext('2d');
+    if (paint) {
+      for (const [i, roof] of roofs.entries()) facade(paint, roof, i);
+      backlot = surface;
+    }
+  }
+  if (backlot) {
+    const section = Math.round(camera);
+    c.drawImage(backlot, section, 0, W, STREET, 0, 0, W, STREET);
+  } else {
+    c.save();
+    c.translate(-Math.round(camera), 0);
+    for (const [i, roof] of roofs.entries())
+      if (roof.right >= camera - 30 && roof.left <= camera + W + 30) facade(c, roof, i);
+    c.restore();
+  }
+}
 export function renderDistrict(c: Ctx, body: Motion, camera: number, time: number, reduced: boolean,
   foreground?: (c: Ctx) => void) {
   sky(c, camera, reduced ? 0 : time);
   horizon(c, camera);
-  c.save();
-  c.translate(-Math.round(camera), 0);
   const visible = (left: number, right: number) => right >= camera - 30 && left <= camera + W + 30;
-  for (const [i, roof] of roofs.entries()) if (visible(roof.left, roof.right)) facade(c, roof, i);
-  c.restore();
+  buildings(c, camera);
   ground(c, camera);
   c.save();
   c.translate(-Math.round(camera), 0);

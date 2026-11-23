@@ -14,9 +14,12 @@ button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px 
 #stars { color: #f6bf82; letter-spacing: .1em; font-size: 1rem; white-space: nowrap; }
 kbd { font-family: inherit; color: #bcaab7; }
 .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; }
-canvas { display: block; width: 100%; height: 100%; }
+canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
 .dock { border-top: 1px solid #4c3b45; }
 .dock strong { color: #edbb99; white-space: nowrap; }
+.district-readout { min-width: 8rem; }
+.strip-map { background: repeating-linear-gradient(90deg,#685064 0 23%,#241f2c 23% 25%); height: 3px; margin-top: .2rem; position: relative; }
+.strip-map span { position: absolute; top: -1px; width: 4px; height: 5px; background: #f7cd9f; transform: translateX(-50%); }
 .dock #prompt { text-align: center; color: #c3e5d7; }
 .dock #status { white-space: nowrap; color: #f9cc9f; font-variant-numeric: tabular-nums; }
 .shade { position: absolute; inset: 0; display: grid; place-items: center; padding: .5rem; overflow: auto; background: #171521a8; }
@@ -42,4 +45,9 @@ canvas { display: block; width: 100%; height: 100%; }
 .shop-card .stock small { grid-column: span 2; color: #c6adae; }
 @media (max-width: 650px) { .mast small { display: none; } }
 @media (max-width: 480px) { .dock { display: grid; grid-template-columns: auto auto; gap: .2rem .75rem; } .dock #prompt { text-align: right; } .dock #status { text-align: right; } }
-@media (max-height: 390px) { .mast, .dock { min-height: 28px; padding-block: .22rem; } }
+@media (max-height: 390px) {
+  #app { width: min(100%, 1280px, calc((100dvh - 108px) * 16 / 9)); }
+  .mast, .dock { min-height: 28px; padding-block: .22rem; }
+  .dock { display: grid; grid-template-columns: 1fr 1fr; gap: .18rem .6rem; }
+  .dock #prompt, .dock #status { text-align: right; }
+}

@@ -41,6 +41,7 @@ test('Police do not cool off in sight, do not track movement in cover, and can l
   assert.equal(police.mode, 'Searching');
   for (let i = 0; i < 180; i++) police.step(.1, hidden, noOp, noOp);
   assert.equal(police.level, 0);
+  assert.deepEqual(police.tells, []);
 });
 
 test('Response cruiser enters outside the camera and refuses to conjure a unit in a narrow edge gap', () => {

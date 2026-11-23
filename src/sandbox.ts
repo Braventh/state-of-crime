@@ -26,6 +26,7 @@ export class Sandbox {
   shop: Business | null = null;
   notice = '';
   noticeTime = 0;
+  private stepAt = 0;
   crime: Crime | null = null;
   police = new Police();
   rides = fleet();
@@ -265,6 +266,10 @@ export class Sandbox {
     }
     const cue = traverse(this.body, { ...input, vertical: input.aim ? 0 : input.vertical, use: input.use && !pickup }, dt);
     if (cue) this.sound(cue);
+    if (this.body.grounded && Math.abs(this.body.vx) > 45 && this.time >= this.stepAt) {
+      this.stepAt = this.time + 58 / Math.abs(this.body.vx);
+      this.sound('step');
+    }
     const attack = this.armory.step(dt, input, this.body, [...this.actors, ...this.police.officers], this.sound);
     const enemy = attack?.target;
     if (enemy) {

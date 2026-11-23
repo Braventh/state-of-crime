@@ -20,12 +20,18 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       form(context, '#272333', x - half - 3, y + 6, x - half, y - 10, x + half, y - 10, x + half + 3, y + 6);
       lettering(context, shop.name.toUpperCase(), x, y + 1, shop.color, 10);
     }
+    const signs: number[] = [];
     for (const actor of [...game.actors, ...game.police.officers]) if (visible(actor.x) && actor.down < 3) {
       portrait(context, actor.role === 'officer' ? { ...actor, hair: 4, weapon: actor.pose ? actor.weapon : 0 } : { ...actor, weapon: actor.hostile ? actor.weapon : 0 });
-      if (actor.role === 'officer' && actor.hp)
-        lettering(context, 'PATROL', actor.x, actor.y - 70, '#9cc1ed', 8);
-      if (actor.faction !== undefined && actor.hostile && actor.hp)
-        lettering(context, factions[actor.faction].name.toUpperCase(), actor.x, actor.y - 70, '#f2a48f', 8);
+      if (actor.hp && !signs.some(x => Math.abs(x - actor.x) < 68)) {
+        if (actor.role === 'officer') {
+          lettering(context, 'PATROL', actor.x, actor.y - 91, '#9cc1ed', 8);
+          signs.push(actor.x);
+        } else if (actor.faction !== undefined && actor.hostile) {
+          lettering(context, factions[actor.faction].name.toUpperCase(), actor.x, actor.y - 91, '#f2a48f', 8);
+          signs.push(actor.x);
+        }
+      }
     }
     for (const lane of [-1, 0, 1]) for (const ride of game.rides) {
       if (!visible(ride.x) || Math.round(ride.depth) !== lane) continue;
@@ -58,6 +64,6 @@ export function renderSandbox(c: Ctx, game: Sandbox, time: number, reduced: bool
       form(context, '#fff1b0', trace.x - 5, trace.y - 3, trace.x, trace.y - 7, trace.x + 7, trace.y, trace.x + 3, trace.y + 4);
     }
     if (!game.ride) portrait(context, { ...game.body, outfit: game.outfit, hair: game.hair, skin: 1, hit: game.hit,
-      down: game.hp ? 0 : .25, pose, aim: aiming, slope, weapon: slot, reload: loading > 0 });
+      down: game.hp ? 0 : .25, pose, aim: aiming, slope, weapon: slot, reload: loading > 0, player: true });
   });
 }

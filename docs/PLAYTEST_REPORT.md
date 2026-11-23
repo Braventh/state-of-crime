@@ -1,44 +1,42 @@
-# Playtest report
+# Crownwater Phase 1 playtest report
 
-## Build and method
+## Method and automated results
 
-Played the Vite production preview in Chrome 156 using real browser keyboard and pointer events, visual inspection of captured game frames, and assertions on the visible HUD. Campaign checkpoints were earned through play, not seeded. The release run used a 1440×900 browser viewport; the settings pass also checked 720×530. No FPS, cross-engine results or independent human playtest are claimed.
+Headless Chrome 156 against the Vite **production** preview at [localhost:4176](http://localhost:4176/), using real browser keyboard and pointer events, HUD assertions and visual inspection of captured frames. Gameplay was earned through input; only the separate corrupt-save test wrote deliberately invalid storage. Normal capture viewport was 1366×900 at device scale factor 1.
 
-## Results
+- `npm test`: **47 passed, 0 failed**, including 16 sandbox cases and 31 inherited V1 regressions. The new cases cover traversal and alternate exits; weapon range, stagger, reload and cover; robbery, crew retaliation/loot and theft; five tiers, offscreen dispatch, last-known position, escape and identity; and storage migration, validation and stale-tab protection.
+- `npm run build -- --outDir ~/soc-v2-build --emptyOutDir`: Vite built in **226 ms**; the preview returned HTTP 200. The separate output directory leaves the V1 preview build intact.
 
-| Area | Result |
+## Section 14 production Chrome results
+
+| Requirement | Result |
 | --- | --- |
-| New Game, movement and First Light | Started fresh, sprinted to Mara, borrowed the Kite, escaped suspicion and delivered at Tidelane. HUD showed $420 and stored the completion. |
-| Tail Lights | Started in the Sable loaner, observed level 2, outran the search eastbound, and checked in at Bluehour. HUD showed $840. |
-| Dead Air | Collected the cartridge on foot, returned under pursuit, entered Bluehour refuge, waited for clear signal, then handed off. HUD showed $1,410. |
-| Cut Across | Deliberately idled to lose and received a retry prompt, restarted and beat Roux in the Sable. HUD showed $2,040. |
-| Last Transmission | Cleared all three sentries with Arc caster, jumped onto the orange crate, collected Beacon 06 and returned to Inez. HUD showed campaign complete and $2,890. |
-| Sidecar, van and progression | Drove the van back from Breakwater, purchased an engine tune and Bayline Van, staged it, drove, changed lanes and braked. Continued after refresh with all five jobs complete, the van selected and $1,950 remaining. |
-| Pause, settings and viewport | Paused, changed mute, volume and reduced motion, resumed, and confirmed settings stored separately. Resized to 720×530; the stage scaled to 689 px wide. |
-| Wanted levels and corrupt checkpoint recovery | A malformed save disabled Continue and New Game recovered. Repeated entries into the borrowed Kite escalated the HUD from suspicion through maximum threat. At level 4, hid at Sidecar, watched the search countdown and left with a clear signal. |
-| Save validators and pursuit simulation | Five automated tests passed: corrupt/incompatible saves, checkpoint round-trip, settings validation, safe spawn and four-level cap, and persistence of heat while exposed compared to a refuge. |
-| Build | Production build passed; compiled asset references are relative and the preview returned HTTP 200. |
+| 14.1 — Sandbox | Started without a mission, explored on foot and by car, robbed Velvet Loom (+$86), stole a parked compact, drove to Prism Motorworks, and collected gear on the street and roof. Engaged Vesper Toll near Rainline Market; one crew member went down and the player took damage. Full end-to-end verification of occupied-car theft, gang-loot pickup and an isolated civilian mugging was not done in Chrome. |
+| 14.2 — Combat | Picked up pipe and pistol, switched via weapon slots, discharged the pistol (8 → 7), and reloaded from reserve (7 / 24 → 8 / 23). The automated suite tests fists, pipe, stagger and occlusion separately. Not all firearm categories, melee outcomes or encounter difficulty were exercised in Chrome. |
+| 14.3 — Wanted and police | Robbery registered at **two stars**; subsequent gunfire reached **five**. Officers and multiple vehicles arrived, including a roadblock. At five stars the HUD stayed “In sight” while exposed. Entering Bluehour Arcade changed it to “Searching”; the wanted stars eventually cleared with 63 HP left. An earlier robbery-to-getaway route wrecked the compact and did not finish as planned. Driving and the five-star escape passed in separate routes. |
+| 14.4 — Identity | Bought and wore the Canal Overcoat and Copper Tail; the save restored both at $76. Bought Sea Glass paint at Prism Motorworks and verified the color persisted after Continue, with $97 remaining. When a patrol had the player in sight at Velvet Loom, the purchase was denied while the HUD stayed at two stars and cash stayed at $226. Recognition stacking and preservation of five stars are tested at system level; quantitative reacquisition distance was not measured in the browser. |
+| 14.5 — World and art | Climbed two fire escapes, picked up a pistol on the upper roof, leaped an adjacent rooftop gap, and used both Bluehour Arcade exits. Captures show the character, roof and street routes, and the wanted HUD outside the canvas. Rooftop street-to-roof span is approximately 42% of the 540-unit frame; the lower passages add another playable route. The first short-window run scrolled at 568×280; after resizing the playfield and stacking the dock, Chrome measured a 280 px page and the whole dock above the fold. Art review was visual, not independent. |
+| 14.6 — Technical | Continued after browser refresh with the purchased appearance, money, weapon and ammo. A malformed checkpoint offered New Game and started normally. No JavaScript exceptions or browser error log entries were recorded in the completed routes. No Safari, Firefox, touch, controller or independent human test was run. |
 
-**What changed after testing:** The freight sentries were hard to aim at across platform heights, a miss could hit incidental civilians, and the HUD did not show which objective gate was blocking the pickup. Increased the Arc caster's vertical reach, cleared incidental foot traffic from the combat compound, displayed remaining sentries, and replayed the mission to completion with 72 HP left.
+## Frame pacing
 
-## Design review
+Sampled 120 consecutive animation-frame intervals in each scene, on this headless Chrome machine:
 
-- First five minutes: A short walk gets to the playable loop quickly; stealing the compact and choosing whether to hide give the delivery a second decision.
-- Move and drive: Sprint, forgiving one-way platforms and immediate brake response are readable. Different speed and weight make the van feel materially different from the coupe. The long coast can feel sparse on foot.
-- Pursuit: The search threshold makes successfully creating distance legible; hiding is a distinct escape option. Staying in the center lane is often optimal, and re-entering the same borrowed car counts as another theft.
-- Variety and progression: Delivery, getaway, score, race and platform combat are different tasks. Buying a permanent tune after the first job gives cash an immediate purpose; the completed campaign does not offer a large repeatable economy.
-- World and navigation: District silhouettes and the continuous road establish continuity without transition screens. The objective includes direction/distance and the map gives regional context; interiors or parallel routes would reward more deliberate exploration.
-- Shareable hook: The neon-to-causeway drive and a pursuit escape make a short scenic clip.
-- Three likely quit points: backtracking through an already familiar road; not finding an obvious first engagement distance at the freight yard; little authored content after campaign completion.
+| Scene | Mean interval | p95 interval | Intervals ≥34 ms |
+| --- | ---: | ---: | ---: |
+| Lantern Row at street level | 16.67 ms | 16.7 ms | 0 |
+| Active five-star pursuit at street level | 16.67 ms | 16.7 ms | 0 |
 
-## Not covered
+These are short observations, capped near 60 Hz on this environment. They are not CPU/GPU timings, a long-session soak, or a guarantee on other hardware. The renderer caches building facades, culls off-camera foreground and uses a fixed 960×540 logical canvas. Audio cues were generated in Chrome without console errors; sound mixing was not independently auditioned.
 
-Safari/Firefox, touch and gamepads, sustained performance profiling, independent QA, long-session accessibility and qualitative audio review across devices. Some alternate tool/vehicle combinations and every possible damage/mission failure were not exhaustively tested.
+## Gameplay evidence
 
-## Captures
-
-- [Title](screenshots/01-title.png)
-- [Crownwater / First Light cleared](screenshots/02-crownwater.png)
-- [Sunsplice Keys / Cut Across cleared](screenshots/03-sunsplice.png)
-- [Breakwater Yard / Beacon 06](screenshots/04-breakwater.png)
-- [Crownwater / maximum threat at a refuge](screenshots/05-maximum-threat.png)
+- [Lantern Row, fresh free roam](screenshots/v2-01-lantern-row.png)
+- [Purchased outfit and hairstyle after Continue](screenshots/v2-02-custom-look.png)
+- [Upper roof with pistol](screenshots/v2-03-rooftop-run.png)
+- [Inside Bluehour Arcade](screenshots/v2-04-bluehour-arcade.png)
+- [Five stars, cruisers and roadblock](screenshots/v2-05-maximum-response.png)
+- [Search cleared inside Bluehour Arcade](screenshots/v2-06-search-cleared.png)
+- [Repainted compact](screenshots/v2-07-motorworks.png)
+- [Vesper Toll encounter](screenshots/v2-08-gang-encounter.png)
+- [568×280 viewport](screenshots/v2-09-short-viewport.png)

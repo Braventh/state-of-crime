@@ -10,7 +10,7 @@ const jackets = [
 export interface Portrait {
   x: number; y: number; dir: number; stride: number; outfit: number; hair: number;
   skin: number; pose?: number; hit?: number; down?: number; aim?: boolean; slope?: number;
-  climb?: boolean; weapon?: number; reload?: boolean;
+  climb?: boolean; weapon?: number; reload?: boolean; player?: boolean;
 }
 function poly(c: Ctx, fill: string, ...xy: number[]) {
   c.fillStyle = fill;
@@ -65,6 +65,10 @@ export function portrait(c: Ctx, p: Portrait) {
   poly(c, sheen, -5 - wide, -38, -1, -42, 3, -39, 10, -38, 8, -35, 0, -36, -5, -34);
   poly(c, '#302b3a', 5, -40, 7, -37, 6, -21, 4, -19);
   poly(c, '#d5aa8d', -6, -29, -1, -30, 1, -27, -5, -26);
+  if (p.player) {
+    poly(c, '#272736', -9, -39, -5, -40, 9, -25 + long, 7, -20 + long, 4, -22 + long);
+    poly(c, '#e7bd7b', -8, -39, -6, -39, 7, -25 + long, 6, -23 + long);
+  }
   poly(c, skin, -3, -41, -1, -46, 6, -45, 6, -40, 2, -38);
   poly(c, edge, -7, -55, -3, -60, 7, -60, 11, -56, 11, -51, 13, -48, 10, -46, 7, -42, 0, -43, -5, -46);
   poly(c, skin, -4, -55, 1, -58, 7, -57, 9, -53, 9, -50, 11, -48, 8, -47, 6, -44, 0, -45, -4, -49);

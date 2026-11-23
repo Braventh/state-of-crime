@@ -5,9 +5,17 @@ import { fresh, loadSave } from '../src/save.ts';
 
 test('retry restores the session checkpoint when browser storage rejected the write', t => {
   const stale = { ...fresh(), cash: 420, completed: 1, x: 2430 };
-  t.mock.property(globalThis, 'localStorage', {
-    getItem: () => JSON.stringify(stale),
-    setItem: () => { throw new Error('Storage quota exceeded'); },
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: () => JSON.stringify(stale),
+      setItem: () => { throw new Error('Storage quota exceeded'); },
+    },
+  });
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
   });
   const game = new Game({ ...stale, cash: 840, completed: 2 }, () => {});
   game.checkpoint(4950);
